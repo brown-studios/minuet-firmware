@@ -58,7 +58,7 @@ minuet_project:
 # Build options for ESPHome.
 minuet_build:
   esphome:
-    min_version: "2025.8.4"
+    min_version: "2025.11.5"
     includes:
       - minuet/core.h
       - minuet/fan_driver.h

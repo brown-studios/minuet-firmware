@@ -29,7 +29,8 @@ select:
     restore_value: true
     on_value:
       then:
-        - script.execute: minuet_thermostat_preset_${minuet_thermostat_preset_id}_change
+        - lambda: |-
+            minuet::publish_thermostat_presets();
   - id: minuet_thermostat_preset_${minuet_thermostat_preset_id}_lid_mode_setting
     platform: template
     name: "Thermostat preset ${minuet_thermostat_preset_name} lid mode"
@@ -43,7 +44,8 @@ select:
     restore_value: true
     on_value:
       then:
-        - script.execute: minuet_thermostat_preset_${minuet_thermostat_preset_id}_change
+        - lambda: |-
+            minuet::publish_thermostat_presets();
 number:
   - id: minuet_thermostat_preset_${minuet_thermostat_preset_id}_temperature_setting
     name: "Thermostat preset ${minuet_thermostat_preset_name} temperature"
@@ -61,19 +63,5 @@ number:
     restore_value: true
     on_value:
       then:
-        - script.execute: minuet_thermostat_preset_${minuet_thermostat_preset_id}_change
-script:
-  - id: minuet_thermostat_preset_${minuet_thermostat_preset_id}_change
-    then:
-      - lambda: |-
-          constexpr const ClimateFanMode FAN_MODES[] = {
-            ClimateFanMode::CLIMATE_FAN_AUTO,
-            ClimateFanMode::CLIMATE_FAN_QUIET,
-            ClimateFanMode::CLIMATE_FAN_LOW,
-            ClimateFanMode::CLIMATE_FAN_OFF,
-          };
-          minuet::set_thermostat_preset_config(ClimatePreset::CLIMATE_PRESET_${minuet_thermostat_preset_id | upper()},
-              ClimateMode::CLIMATE_MODE_COOL,
-              FAN_MODES[id(minuet_thermostat_preset_${minuet_thermostat_preset_id}_fan_mode_setting).active_index().value_or(0)],
-              minuet::LidMode(id(minuet_thermostat_preset_${minuet_thermostat_preset_id}_lid_mode_setting).active_index().value_or(0)),
-              id(minuet_thermostat_preset_${minuet_thermostat_preset_id}_temperature_setting).state);
+        - lambda: |-
+            minuet::publish_thermostat_presets();

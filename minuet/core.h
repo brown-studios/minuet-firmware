@@ -3,6 +3,8 @@
 
 #include "esphome/components/fan/fan.h"
 #include "esphome/components/climate/climate_mode.h"
+#include "esphome/components/number/number.h"
+#include "esphome/components/select/select.h"
 
 #include <cstdint>
 #include <map>
@@ -66,20 +68,56 @@ enum class LidMode : uint8_t {
   CLOSED = 2,
 };
 
-std::map<ClimatePreset, LidMode> thermostat_preset_lid_modes;
+esphome::thermostat::ThermostatPresetEntry make_thermostat_preset_entry(
+    esphome::climate::ClimatePreset preset,
+    esphome::select::Select* fan_mode_setting,
+    esphome::number::Number* temperature_setting) {
+  constexpr const esphome::climate::ClimateFanMode FAN_MODES[] = {
+    esphome::climate::ClimateFanMode::CLIMATE_FAN_AUTO,
+    esphome::climate::ClimateFanMode::CLIMATE_FAN_QUIET,
+    esphome::climate::ClimateFanMode::CLIMATE_FAN_LOW,
+    esphome::climate::ClimateFanMode::CLIMATE_FAN_OFF,
+  };
+  esphome::thermostat::ThermostatClimateTargetTempConfig config(temperature_setting->state);
+  config.set_mode(esphome::climate::ClimateMode::CLIMATE_MODE_COOL);
+  config.set_fan_mode(FAN_MODES[fan_mode_setting->active_index().value_or(0)]);
+  return { preset, config };
+}
 
-void set_thermostat_preset_config(ClimatePreset preset, ClimateMode mode, ClimateFanMode fan_mode,
-    LidMode lid_mode, float default_temperature) {
-  esphome::thermostat::ThermostatClimateTargetTempConfig config(default_temperature);
-  config.set_mode(mode);
-  config.set_fan_mode(fan_mode);
-  thermostat_preset_lid_modes[preset] = lid_mode;
-  minuet_thermostat->set_preset_config(preset, config);
+void publish_thermostat_presets() {
+  minuet_thermostat->set_preset_config({
+      make_thermostat_preset_entry(esphome::climate::ClimatePreset::CLIMATE_PRESET_HOME,
+          minuet_thermostat_preset_home_fan_mode_setting,
+          minuet_thermostat_preset_home_temperature_setting),
+      make_thermostat_preset_entry(esphome::climate::ClimatePreset::CLIMATE_PRESET_SLEEP,
+          minuet_thermostat_preset_sleep_fan_mode_setting,
+          minuet_thermostat_preset_sleep_temperature_setting),
+      make_thermostat_preset_entry(esphome::climate::ClimatePreset::CLIMATE_PRESET_AWAY,
+          minuet_thermostat_preset_away_fan_mode_setting,
+          minuet_thermostat_preset_away_temperature_setting),
+      make_thermostat_preset_entry(esphome::climate::ClimatePreset::CLIMATE_PRESET_ECO,
+          minuet_thermostat_preset_eco_fan_mode_setting,
+          minuet_thermostat_preset_eco_temperature_setting),
+  });
+}
+
+LidMode get_thermostat_preset_lid_mode_from_setting(esphome::select::Select* lid_mode_setting) {
+  return minuet::LidMode(lid_mode_setting->active_index().value_or(0));
 }
 
 LidMode get_thermostat_preset_lid_mode(ClimatePreset preset) {
-  auto it = thermostat_preset_lid_modes.find(preset);
-  return it != thermostat_preset_lid_modes.end() ? it->second : LidMode::AUTO;
+  switch (preset) {
+    case esphome::climate::ClimatePreset::CLIMATE_PRESET_HOME:
+      return get_thermostat_preset_lid_mode_from_setting(minuet_thermostat_preset_home_lid_mode_setting);
+    case esphome::climate::ClimatePreset::CLIMATE_PRESET_SLEEP:
+      return get_thermostat_preset_lid_mode_from_setting(minuet_thermostat_preset_sleep_lid_mode_setting);
+    case esphome::climate::ClimatePreset::CLIMATE_PRESET_AWAY:
+      return get_thermostat_preset_lid_mode_from_setting(minuet_thermostat_preset_away_lid_mode_setting);
+    case esphome::climate::ClimatePreset::CLIMATE_PRESET_ECO:
+      return get_thermostat_preset_lid_mode_from_setting(minuet_thermostat_preset_eco_lid_mode_setting);
+    default:
+      return LidMode::AUTO;
+  }
 }
 
 } // namespace minuet
