@@ -74,6 +74,9 @@ minuet_build:
     - source: github://brown-studios/esphome-mcf8316@main
       components: [ mcf8316 ]
       refresh: 1min
+    # - source: ../esphome-mcf8316/components/
+    #   components: [ mcf8316 ]
+    #   refresh: 1min
 
 ### PACKAGE: BOARD
 #

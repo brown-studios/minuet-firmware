@@ -67,6 +67,13 @@ void change_brightness(esphome::light::LightState* light, int direction) {
   }
 }
 
+void check_safety_lock() {
+  if (minuet_light->remote_values.is_on() && minuet_safety_lock->state) {
+    minuet_tone->execute("forbidden");
+    turn_off(minuet_light);
+  }
+}
+
 struct IndexedColor {
   unsigned index;
   unsigned rgb;
@@ -194,13 +201,6 @@ void init() {
   minuet_ir_control_accessory_nec->value() = [](esphome::remote_base::NECData code) {
     apply_nec_code(minuet_light, code);
   };
-
-  minuet_light->add_new_remote_values_callback([] {
-    if (minuet_light->remote_values.is_on() && minuet_safety_lock->state) {
-      minuet_tone->execute("forbidden");
-      turn_off(minuet_light);
-    }
-  });
 
   minuet_safety_lock->add_on_state_callback([](bool state) {
     if (state) {

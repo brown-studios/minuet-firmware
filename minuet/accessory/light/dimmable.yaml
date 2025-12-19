@@ -22,6 +22,10 @@ minuet_light:
       default_transition_length: 0.5s
       effects:
         - pulse:
+      on_state:
+        then:
+          lambda: |-
+            minuet::accessory::light::check_safety_lock();
 
   # PWM output for driving the PWR pin.
   output:

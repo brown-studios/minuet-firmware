@@ -107,6 +107,7 @@ minuet_light:
                 static_cast<AddressableLight*>(light->get_output())->all().set_white(0.f);
               }
             }
+            minuet::accessory::light::check_safety_lock();
 
   # Power supply component turns on the PWR pin when the light is on.
   # Shutdown behavior: The power_supply component automatically turns the light off
