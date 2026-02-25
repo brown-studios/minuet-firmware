@@ -2,9 +2,9 @@
 
 [Minuet](https://github.com/brown-studios/minuet) upgrades your [MAXXAIR Maxxfan](https://www.maxxair.com/products/fans/maxxfan-deluxe/) with a brushless DC motor, home automation features, and accessories.
 
-This repository contains the Minuet firmware based on ESPHome.  You are free to customize the firmware as you like.
+This repository contains the Minuet firmware configuation based on ESPHome.  You are welcome to modify the Minuet firmware and hardware subject to the [license terms](#notice) and we encourage you to make your own accessories.  We welcome thoughtful contributions.
 
-*Refer to the main [Minuet repository](https://github.com/brown-studios/minuet) for documentation and hardware design files.*
+*Refer to the [Minuet main repository](https://github.com/brown-studios/minuet) for documentation and hardware design files.*
 
 ## ESPHome configuration YAML
 
@@ -139,6 +139,10 @@ Minuet remains compatible with these original expectations and it expands the ra
 ESPHome uses Celsius temperature units internally so the Minuet firmware converts the units as required and represents them as single-precision floating point values without rounding.
 
 It's too bad the original designers didn't choose 77 °F as the default because that would have converted to exactly 25 °C.
+
+## Acknowledgements
+
+Thanks to [skypeachblue](https://github.com/skypeachblue) and [wingspinner](https://github.com/wingspinner) for publishing information about their [reverse engineering](https://github.com/skypeachblue/maxxfan-reversing) of the Maxxfan IR remote control protocol.  It helped me create the [esphome-maxxfan-protocol](https://github.com/brown-studios/esphome-maxxfan-protocol) component for this project.
 
 ## Notice
 
