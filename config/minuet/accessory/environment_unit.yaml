@@ -1,0 +1,113 @@
+# MINUET ENVIRONMENT ACCESSORY PACKAGE FOR ONE UNIT
+
+# substitutions:
+#   # Disable components when accessory is not installed.
+#   minuet_package_accessory_environment_setup_condition:
+#     sensor:
+#       - id: !extend minuet_environment_bmp580${minuet_environment_id_suffix}
+#         setup_condition: !lambda 'return minuet::accessory::is_installed("environment");'
+
+esphome:
+  on_boot:
+    - priority: ${minuet_accessory_setup_priority}
+      then:
+        - lambda: |-
+            // Detect BMP580 by reading its chip id register
+            // If we find BMP580 then assume the STCC4 is present as well (because it's more difficult
+            // to detect on the bus because it NACKs certain requests while performing measurements).
+            constexpr auto detect_bmp580 = []{
+              uint8_t write_buf[1] = { 0x01 };
+              uint8_t read_buf[1] = { 0x00 };
+              return id(minuet_i2c).write_readv(${minuet_environment_bmp580_i2c_address},
+                  write_buf, sizeof(write_buf), read_buf, sizeof(read_buf)) == esphome::i2c::NO_ERROR &&
+                  read_buf[0] == 0x50;
+            };
+            if (!detect_bmp580()) {
+              id(minuet_environment_temperature_bmp580${minuet_environment_id_suffix})->set_internal(true);
+              id(minuet_environment_pressure_bmp580${minuet_environment_id_suffix})->set_internal(true);
+              id(minuet_environment_co2_stcc4${minuet_environment_id_suffix})->set_internal(true);
+              id(minuet_environment_temperature_sht40${minuet_environment_id_suffix})->set_internal(true);
+              id(minuet_environment_humidity_sht40${minuet_environment_id_suffix})->set_internal(true);
+              return; // accessory not detected
+            }
+
+            minuet::accessory::install({
+              .id = "environment${minuet_environment_id_suffix}",
+            });
+
+sensor:
+  - id: minuet_environment_bmp580${minuet_environment_id_suffix}
+    platform: bmp581_i2c
+    i2c_id: minuet_i2c
+    address: ${minuet_environment_bmp580_i2c_address}
+    temperature:
+      id: minuet_environment_temperature_bmp580${minuet_environment_id_suffix}
+      name: "Temperature from BMP580${minuet_environment_name_suffix}"
+      oversampling: "none"
+      iir_filter: "off"
+      accuracy_decimals: 1
+      filters:
+        - sliding_window_moving_average:
+            window_size: 30  # window of 30 seconds
+            send_every: 15  # every 15 seconds
+            send_first_at: 1
+        - delta: 0.05
+        - round_to_multiple_of: 0.1
+    pressure:
+      id: minuet_environment_pressure_bmp580${minuet_environment_id_suffix}
+      name: "Pressure from BMP580${minuet_environment_name_suffix}"
+      oversampling: "4x"
+      iir_filter: "off"
+      accuracy_decimals: 1
+      unit_of_measurement: "hPa"
+      filters:
+        - multiply: 0.01  # convert from Pa to hPa
+        - sliding_window_moving_average:
+            window_size: 30  # window of 30 seconds
+            send_every: 15  # every 15 seconds
+            send_first_at: 1
+        - delta: 0.5
+        - round_to_multiple_of: 0.1
+    update_interval: 1s
+  - id: minuet_environment_stcc4${minuet_environment_id_suffix}
+    platform: stcc4
+    i2c_id: minuet_i2c
+    address: ${minuet_environment_stcc4_i2c_address}
+    measurement_mode: continuous  # every second
+    ambient_pressure_compensation_source: minuet_environment_pressure_bmp580${minuet_environment_id_suffix}
+    co2:
+      id: minuet_environment_co2_stcc4${minuet_environment_id_suffix}
+      name: "CO₂ from STCC4${minuet_environment_name_suffix}"
+      accuracy_decimals: 0
+      filters:
+        - sliding_window_moving_average:
+            window_size: 30  # window of 30 seconds
+            send_every: 15  # every 15 seconds
+            send_first_at: 1
+        - delta: 0.5
+        - round_to_multiple_of: 1
+    temperature:
+      id: minuet_environment_temperature_sht40${minuet_environment_id_suffix}
+      name: "Temperature from SHT40${minuet_environment_name_suffix}"
+      accuracy_decimals: 1
+      filters:
+        - sliding_window_moving_average:
+            window_size: 30  # window of 30 seconds
+            send_every: 15  # every 15 seconds
+            send_first_at: 1
+        - delta: 0.05
+        - round_to_multiple_of: 0.1
+    humidity:
+      id: minuet_environment_humidity_sht40${minuet_environment_id_suffix}
+      name: "Humidity from SHT40${minuet_environment_name_suffix}"
+      accuracy_decimals: 1
+      filters:
+        - sliding_window_moving_average:
+            window_size: 30  # window of 30 seconds
+            send_every: 15  # every 15 seconds
+            send_first_at: 1
+        - delta: 0.05
+        - round_to_multiple_of: 0.1
+
+# packages:
+#   - ${minuet_package_accessory_environment_setup_condition if minuet_esphome_has_setup_condition else {}}

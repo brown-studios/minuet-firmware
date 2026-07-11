@@ -1,0 +1,51 @@
+# MINUET ENVIRONMENT ACCESSORY PACKAGE
+#
+# Reads sensors from the environmental sensor accessory.
+# Supports two instances of the accessory at different I2C addresses.
+# Refer to the environment accessory documentation for details.
+
+substitutions:
+  minuet_auto_sensors:
+    temperature:
+      - name: "BMP580"
+        sensor_id: minuet_environment_temperature_bmp580
+        priority: 500
+      - name: "BMP580 Alt"
+        sensor_id: minuet_environment_temperature_bmp580_alt
+        priority: 400
+      - name: "SHT40"
+        sensor_id: minuet_environment_temperature_sht40
+        priority: 500
+      - name: "SHT40 Alt"
+        sensor_id: minuet_environment_temperature_sht40_alt
+        priority: 400
+    humidity:
+      - name: "SHT40"
+        sensor_id: minuet_environment_humidity_sht40
+        priority: 500
+      - name: "SHT40 Alt"
+        sensor_id: minuet_environment_humidity_sht40_alt
+        priority: 400
+    co2:
+      - name: "STCC4"
+        sensor_id: minuet_environment_co2_stcc4
+        priority: 500
+      - name: "STCC4 Alt"
+        sensor_id: minuet_environment_co2_stcc4_alt
+        priority: 400
+
+packages:
+  - !include
+    file: environment_unit.yaml
+    vars:
+      minuet_environment_id_suffix: ""
+      minuet_environment_name_suffix: ""
+      minuet_environment_bmp580_i2c_address: 0x46
+      minuet_environment_stcc4_i2c_address: 0x64
+  - !include
+    file: environment_unit.yaml
+    vars:
+      minuet_environment_id_suffix: "_alt"
+      minuet_environment_name_suffix: " Alt"
+      minuet_environment_bmp580_i2c_address: 0x47
+      minuet_environment_stcc4_i2c_address: 0x65

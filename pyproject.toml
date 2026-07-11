@@ -1,0 +1,15 @@
+[project]
+name = "minuet"
+description = "ESPHome configuration for the Minuet fan controller"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.0",
+    "ruff>=0.15.22",
+    "yamllint>=1.38.0",
+]
+
+[tool.ruff]

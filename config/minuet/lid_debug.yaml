@@ -1,0 +1,21 @@
+# MINUET LID DEBUG PACKAGE
+#
+# Provides development and debugging functions for the lid motor driver.  They are excluded from
+# the base configuration because they can interfere with the normal operation of the device.
+
+esphome:
+  build_flags:
+    - "-DMINUET_LID_DEBUG"
+
+select:
+  - id: minuet_lid_debug_fault
+    platform: template
+    name: "Lid debug fault"
+    icon: mdi:bug-outline
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    optimistic: true
+    restore_value: false
+    options:
+      - Default
+      - Fault

@@ -1,0 +1,38 @@
+# MINUET AUTO MODE COMMON PACKAGE
+#
+# Declares settings entities that are common to all controllers.
+
+esphome:
+  includes:
+    - minuet/auto_mode/controllers/common.h
+
+select:
+  - id: minuet_auto_fan_direction
+    name: "Auto fan direction"
+    icon: mdi:thermostat-auto
+    platform: template
+    optimistic: true
+    restore_value: true
+    options:
+      - "Auto"
+      - "Air out"
+      - "Air in"
+    on_value:
+      then:
+        lambda: |-
+          minuet::coordinator::coordinator.on_auto_fan_direction_value();
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_lid_position
+    name: "Auto lid position"
+    icon: mdi:thermostat-auto
+    platform: template
+    optimistic: true
+    restore_value: true
+    options:
+      - "Auto"
+      - "Open"
+      - "Closed"
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();

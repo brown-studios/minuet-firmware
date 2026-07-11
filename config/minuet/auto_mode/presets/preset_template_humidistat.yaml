@@ -1,0 +1,10 @@
+# MINUET AUTO MODE PRESET TEMPLATE PACKAGE FOR THE HUMIDISTAT
+
+switch:
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_humidistat_on
+    platform: template
+    name: "Auto preset ${minuet_auto_preset_name} humidistat on"
+    icon: mdi:thermostat-cog
+    entity_category: config
+    optimistic: true
+    restore_mode: ${"RESTORE_DEFAULT_ON" if minuet_auto_preset_humidistat_on else "RESTORE_DEFAULT_OFF"}

@@ -1,0 +1,12 @@
+# MINUET AUTO MODE CONTROLLERS PACKAGE
+
+esphome:
+  includes:
+    - minuet/auto_mode/controllers/controllers.h
+
+packages:
+  - !include common.yaml
+  - !include {file: aqi_monitor.yaml, condition: "${minuet_feature_auto_aqi_monitor}"}
+  - !include {file: co2_monitor.yaml, condition: "${minuet_feature_auto_co2_monitor}"}
+  - !include {file: humidistat.yaml, condition: "${minuet_feature_auto_humidistat}"}
+  - !include thermostat.yaml

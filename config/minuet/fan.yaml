@@ -1,0 +1,185 @@
+# MINUET FAN PACKAGE
+#
+# Drives the fan motor.  Coordination between the fan and the lid is handled elsewhere.
+
+substitutions:
+  # Motor profiles tell the motor driver how to control the motor.
+  # Don't modify these parameters unless you really know what you're doing; you could damage something!
+  # Refer to MotorProfile in fan.h for details.
+  minuet_fan_motor_profiles:
+    - name: Minuet kit motor (Default)
+      poles: 4
+      lead_angle_degrees: 0
+      motor_res: 74
+      motor_ind: 98
+      motor_bemf_const: 103
+      spd_loop_kp: 115
+      spd_loop_ki: 293
+      ipd_clk_freq: IPDClockFrequency::FREQ_1000_HZ
+      ipd_curr_thr: IPDCurrentThreshold::THRESHOLD_1_5_A
+      ol_ilimit: CurrentLimit::LIMIT_2_0_A
+      ol_acc_a1: OpenLoopAcceleration::ACCEL_2_5_HZ_S
+      ilimit: CurrentLimit::LIMIT_4_5_A
+      cl_slow_acc: ClosedLoopSlowAcceleration::ACCEL_3_0_HZ_S
+      cl_acc: ClosedLoopAcceleration::ACCEL_20_0_HZ_S
+      cl_dec: ClosedLoopDeceleration::ACCEL_NO_LIMIT
+      fan_speed_rpm_min: 200
+      fan_speed_rpm_max: 1200
+    # Alternative profile used for A/B testing different parameters
+    - name: Minuet kit motor (Alternative)
+      poles: 4
+      lead_angle_degrees: 0
+      motor_res: 74
+      motor_ind: 98
+      motor_bemf_const: 103
+      spd_loop_kp: 115
+      spd_loop_ki: 293
+      ipd_clk_freq: IPDClockFrequency::FREQ_1000_HZ
+      ipd_curr_thr: IPDCurrentThreshold::THRESHOLD_1_5_A
+      ol_ilimit: CurrentLimit::LIMIT_2_0_A
+      ol_acc_a1: OpenLoopAcceleration::ACCEL_2_5_HZ_S
+      ilimit: CurrentLimit::LIMIT_4_5_A
+      cl_slow_acc: ClosedLoopSlowAcceleration::ACCEL_3_0_HZ_S
+      cl_acc: ClosedLoopAcceleration::ACCEL_20_0_HZ_S
+      cl_dec: ClosedLoopDeceleration::ACCEL_NO_LIMIT
+      fan_speed_rpm_min: 200
+      fan_speed_rpm_max: 1200
+
+external_components:
+  - source: github://brown-studios/esphome-mcf8316@v0.3.0
+    components: [mcf8316]
+#   - source: ../../esphome-mcf8316/components/
+#     components: [mcf8316]
+#     refresh: always
+
+esphome:
+  includes:
+    - minuet/fan.h
+  on_boot:
+    - priority: 700  # after HARDWARE components (mcf8316)
+      then:
+        - lambda: |-
+            minuet::fan::hardware_setup_complete = true;
+            id(minuet_fan_motor_init).execute();
+  on_shutdown:
+    - priority: 500
+      then:
+        - lambda: |-
+            minuet::fan::motor_controller.shutdown();
+            id(minuet_fan_publish_status).execute();
+
+fan:
+  - id: minuet_fan
+    name: "Fan"
+    platform: template
+    has_direction: true
+    speed_count: 10
+    restore_mode: NO_RESTORE
+    on_state:
+      then:
+        - lambda: |-
+            // SAFETY LOCK CHECK: Fan cannot operate while safety lock is on
+            auto& fan = id(minuet_fan);
+            if (fan->state && !minuet::safety_lock::validate_operation(
+                {
+                  .description = "turn fan on",
+                  .stage = minuet::safety_lock::Stage::INITIATING,
+                  .rain_sensitive = true,
+                })) {
+              fan->make_call().set_state(false).perform();
+              return; // operation inhibited
+            }
+            ESP_LOGI(minuet::TAG, "Fan state: %s, speed %d, %s direction",
+                fan->state ? "on" : "off",
+                fan->speed,
+                fan->direction == minuet::fan::AIR_OUT ? "air out (reverse)" : "air in (forward)");
+            minuet::coordinator::coordinator.on_fan_state(fan->state, fan->speed, fan->direction);
+
+            minuet::fan::schedule_update();
+
+mcf8316:
+  - id: minuet_fan_motor_driver
+    i2c_id: minuet_i2c
+    address: 0x01
+    wake:
+      pca9554: minuet_xio
+      number: 13
+      mode: output
+    nfault:
+      pca9554: minuet_xio
+      number: 12
+      mode: input
+    watchdog:
+      number: 22
+      mode: output
+    on_algorithm_state:
+      then:
+        - lambda: |-
+            minuet::fan::schedule_update();
+    on_fault:
+      then:
+        - lambda: |-
+            minuet::fan::schedule_update();
+
+text_sensor:
+  - id: minuet_fan_status
+    name: "Fan status"
+    icon: mdi:fan-alert
+    entity_category: diagnostic
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    platform: template
+    update_interval: never
+
+script:
+  - id: minuet_fan_motor_init
+    then:
+      - lambda: |-
+          if (!minuet::fan::hardware_setup_complete) return; // suppress premature call
+
+          using namespace minuet::fan;
+          static constexpr MotorDescriptor MOTOR_DESCRIPTORS[] = {
+            <% for x in minuet_fan_motor_profiles %>
+            {
+              "${x.name}", {
+                .fg_div = fg_div_from_motor_poles(${x.poles}),
+                .lead_angle = lead_angle_from_degrees(${x.lead_angle_degrees}),
+                .motor_res = ${x.motor_res},
+                .motor_ind = ${x.motor_ind},
+                .motor_bemf_const = ${x.motor_bemf_const},
+                .spd_loop_kp = ${x.spd_loop_kp},
+                .spd_loop_ki = ${x.spd_loop_ki},
+                .ipd_clk_freq = ${x.ipd_clk_freq},
+                .ipd_curr_thr = ${x.ipd_curr_thr},
+                .ol_ilimit = ${x.ol_ilimit},
+                .ol_acc_a1 = ${x.ol_acc_a1},
+                .ilimit = ${x.ilimit},
+                .cl_slow_acc = ${x.cl_slow_acc},
+                .cl_acc = ${x.cl_acc},
+                .cl_dec = ${x.cl_dec},
+                .fan_speed_rpm_min = ${x.fan_speed_rpm_min},
+                .fan_speed_rpm_max = ${x.fan_speed_rpm_max},
+              }
+            },
+            <% endfor %>
+          };
+          static constexpr size_t DEFAULT_INDEX = 0;
+
+          size_t index = ${"id(minuet_fan_debug_motor_descriptor).active_index().value_or(DEFAULT_INDEX)" if minuet_feature_debug else "DEFAULT_INDEX"};
+          minuet::fan::motor_controller.init(MOTOR_DESCRIPTORS[index]);
+          id(minuet_fan_publish_status).execute();
+  - id: minuet_fan_fault
+    then:
+      - lambda: |-
+          if (id(minuet_fan).state) {
+            minuet::tone::play("!fan_fault");
+            minuet::coordinator::command_fan_fault();
+          }
+  - id: minuet_fan_publish_status
+    then:
+      - lambda: |-
+          std::string status = minuet::fan::motor_controller.format_status();
+          minuet::publish_state_if_changed(id(minuet_fan_status), status);
+
+packages:
+  - !include {file: fan_debug.yaml, condition: "${minuet_feature_debug}"}
+  - !include {file: fan_diagnostics.yaml, condition: "${minuet_feature_diagnostics}"}

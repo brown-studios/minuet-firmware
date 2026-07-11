@@ -1,0 +1,22 @@
+# MINUET API PACKAGE
+#
+# Accepts API requests from the local network.
+#
+# SECURITY NOTE: The outer configuration is responsible for supplying default credentials, if any.
+
+api:
+  reboot_timeout: 0s
+  actions:
+    - action: play_tone
+      variables:
+        name: string
+      then:
+        - lambda: id(minuet_tone)->execute(name);
+    - action: play_tone_rtttl
+      variables:
+        tone: string
+      then:
+        - lambda: id(minuet_tone_rtttl)->execute(tone);
+    - action: stop_tone
+      then:
+        - rtttl.stop:

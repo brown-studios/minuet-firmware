@@ -1,0 +1,78 @@
+# MINUET AUTO MODE SENSORS PACKAGE
+#
+# Lets the user configure which sensors are used by the auto mode controllers in case there
+# are multiple sensors of the same type provided by accessories.
+
+substitutions:
+  # Registry of sensors used for automatic control.
+  # Accessories can extend these lists.
+  minuet_auto_sensors:
+    temperature:
+      - name: Thermistor
+        sensor_id: minuet_thermistor_temperature
+        priority: 1000
+    humidity: []
+    co2: []
+    aqi: []
+
+esphome:
+  includes:
+    - minuet/auto_mode/sensors/sensors.h
+  on_boot:
+    - priority: 501  # Before coordinator boot
+      then:
+        - lambda: |-
+            minuet::auto_mode::sensors.init();
+
+packages:
+  - !include
+    file: sensor_template.yaml
+    vars:
+      minuet_auto_sensor_id: aqi
+      minuet_auto_sensor_name: "AQI"
+      minuet_auto_sensor_options: ${minuet_auto_sensors.aqi}
+      minuet_auto_sensor_debug_device_class: "aqi"
+      minuet_auto_sensor_debug_unit_of_measurement: ""
+      minuet_auto_sensor_debug_min_value: 0
+      minuet_auto_sensor_debug_max_value: 500
+      minuet_auto_sensor_debug_step: 1
+      minuet_auto_sensor_debug_initial_value: 0
+    condition: ${minuet_feature_auto_aqi_monitor}
+  - !include
+    file: sensor_template.yaml
+    vars:
+      minuet_auto_sensor_id: co2
+      minuet_auto_sensor_name: "CO₂"
+      minuet_auto_sensor_options: ${minuet_auto_sensors.co2}
+      minuet_auto_sensor_debug_device_class: "carbon_dioxide"
+      minuet_auto_sensor_debug_unit_of_measurement: "ppm"
+      minuet_auto_sensor_debug_min_value: 400
+      minuet_auto_sensor_debug_max_value: 5000
+      minuet_auto_sensor_debug_step: 1
+      minuet_auto_sensor_debug_initial_value: 400
+    condition: ${minuet_feature_auto_co2_monitor}
+  - !include
+    file: sensor_template.yaml
+    vars:
+      minuet_auto_sensor_id: humidity
+      minuet_auto_sensor_name: "humidity"
+      minuet_auto_sensor_options: ${minuet_auto_sensors.humidity}
+      minuet_auto_sensor_debug_device_class: "humidity"
+      minuet_auto_sensor_debug_unit_of_measurement: "%"
+      minuet_auto_sensor_debug_min_value: 0
+      minuet_auto_sensor_debug_max_value: 100
+      minuet_auto_sensor_debug_step: 1
+      minuet_auto_sensor_debug_initial_value: 0
+    condition: ${minuet_feature_auto_humidistat or minuet_feature_auto_thermostat_can_use_humidity}
+  - !include
+    file: sensor_template.yaml
+    vars:
+      minuet_auto_sensor_id: temperature
+      minuet_auto_sensor_name: "temperature"
+      minuet_auto_sensor_options: ${minuet_auto_sensors.temperature}
+      minuet_auto_sensor_debug_device_class: "temperature"
+      minuet_auto_sensor_debug_unit_of_measurement: "°C"
+      minuet_auto_sensor_debug_min_value: -5
+      minuet_auto_sensor_debug_max_value: 50
+      minuet_auto_sensor_debug_step: 0.5
+      minuet_auto_sensor_debug_initial_value: 25

@@ -1,0 +1,123 @@
+# MINUET AUTO MODE AQI MONITOR PACKAGE
+#
+# Monitors outdoor air quality index (AQI) and suppresses ventilation when a threshold is exceeded.
+
+substitutions:
+  minuet_auto_aqi_monitor_default_on: false
+  minuet_auto_aqi_monitor_default_clear_threshold: 100  # in aqi
+  minuet_auto_aqi_monitor_default_clear_duration: 120  # in minutes
+  minuet_auto_aqi_monitor_default_trigger_threshold: 151  # in aqi
+  minuet_auto_aqi_monitor_default_trigger_duration: 5  # in minutes
+
+esphome:
+  build_flags:
+    - "-DMINUET_AUTO_AQI_MONITOR"
+    - "-DMINUET_AUTO_AQI_MONITOR_DEFAULT_ON=${1 if minuet_auto_aqi_monitor_default_on else 0}"
+  includes:
+    - minuet/auto_mode/controllers/aqi_monitor.h
+
+climate:
+  - id: minuet_auto_aqi_monitor
+    name: "Auto AQI monitor"
+    icon: mdi:thermostat-auto
+    platform: template
+    supports_action: true
+    supported_modes:
+      - "OFF"
+      - AUTO
+    supported_presets: ${minuet_auto_presets}
+    custom_presets: ${minuet_auto_custom_presets}
+    optimistic: true
+    restore_mode: RESTORE
+    initial_state:
+      mode: ${"AUTO" if minuet_auto_aqi_monitor_default_on else "OFF"}
+    on_control:
+      then:
+        lambda: |-
+          minuet::auto_mode::set_active_preset_from_climate_call(x);
+    on_state:
+      then:
+        lambda: |-
+          static esphome::climate::ClimateMode last_mode{};
+          if (x.mode != last_mode) {
+            last_mode = x.mode;
+            minuet::auto_mode::schedule_governor_update();
+          }
+
+number:
+  - id: minuet_auto_aqi_monitor_clear_threshold
+    name: "Auto AQI monitor clear threshold"
+    icon: mdi:thermostat-cog
+    platform: template
+    device_class: aqi
+    min_value: 0
+    max_value: 500
+    step: 1
+    initial_value: ${minuet_auto_aqi_monitor_default_clear_threshold}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_aqi_monitor_trigger_threshold
+    name: "Auto AQI monitor trigger threshold"
+    icon: mdi:thermostat-cog
+    platform: template
+    device_class: aqi
+    min_value: 0
+    max_value: 500
+    step: 1
+    initial_value: ${minuet_auto_aqi_monitor_default_trigger_threshold}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_aqi_monitor_clear_duration
+    name: "Auto AQI monitor clear duration"
+    icon: mdi:thermostat-cog
+    platform: template
+    unit_of_measurement: 'min'
+    device_class: duration
+    min_value: 0
+    max_value: 1440
+    step: 1
+    initial_value: ${minuet_auto_aqi_monitor_default_clear_duration}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_aqi_monitor_trigger_duration
+    name: "Auto AQI monitor trigger duration"
+    icon: mdi:thermostat-cog
+    platform: template
+    unit_of_measurement: 'min'
+    device_class: duration
+    min_value: 0
+    max_value: 60
+    step: 1
+    initial_value: ${minuet_auto_aqi_monitor_default_trigger_duration}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+
+sensor:
+  - id: minuet_auto_aqi_monitor_current_aqi
+    name: "Auto AQI monitor current AQI"
+    state_class: measurement
+    device_class: aqi
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    platform: template
+    update_interval: never

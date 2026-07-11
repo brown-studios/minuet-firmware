@@ -1,0 +1,31 @@
+# MINUET AUTO MODE SENSOR TEMPLATE PACKAGE FOR DEBUG
+
+number:
+  - id: minuet_auto_sensor_${minuet_auto_sensor_id}_debug
+    name: "Auto sensor ${minuet_auto_sensor_name} debug"
+    icon: mdi:thermostat-cog
+    platform: template
+    device_class: ${minuet_auto_sensor_debug_device_class}
+    unit_of_measurement: ${minuet_auto_sensor_debug_unit_of_measurement}
+    entity_category: config
+    min_value: ${minuet_auto_sensor_debug_min_value}
+    max_value: ${minuet_auto_sensor_debug_max_value}
+    step: ${minuet_auto_sensor_debug_step}
+    initial_value: ${minuet_auto_sensor_debug_initial_value}
+    mode: box
+    optimistic: true
+    restore_value: true
+
+packages:
+  - |-
+    ${{
+      "substitutions": {
+        "minuet_auto_sensors": {
+          minuet_auto_sensor_id: [{
+            "name": "Debug",
+            "sensor_id": "minuet_auto_sensor_" + minuet_auto_sensor_id + "_debug",
+            "priority": -100
+          }]
+        }
+      }
+    }}

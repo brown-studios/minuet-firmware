@@ -1,0 +1,35 @@
+# MINUET AUTO MODE PRESET TEMPLATE PACKAGE
+#
+# This template package is included once per preset to define the entities for configuring that preset.
+
+select:
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_fan_direction
+    platform: template
+    name: "Auto preset ${minuet_auto_preset_name} fan direction"
+    icon: mdi:thermostat-cog
+    entity_category: config
+    optimistic: true
+    options:
+      - Auto
+      - Air out
+      - Air in
+    initial_option: ${minuet_auto_preset_fan_direction}
+    restore_value: true
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_lid_position
+    platform: template
+    name: "Auto preset ${minuet_auto_preset_name} lid position"
+    icon: mdi:thermostat-cog
+    entity_category: config
+    optimistic: true
+    options:
+      - Auto
+      - Open
+      - Closed
+    initial_option: ${minuet_auto_preset_lid_position}
+    restore_value: true
+
+packages:
+  - !include {file: preset_template_aqi_monitor.yaml, condition: "${minuet_feature_auto_aqi_monitor}"}
+  - !include {file: preset_template_co2_monitor.yaml, condition: "${minuet_feature_auto_co2_monitor}"}
+  - !include {file: preset_template_humidistat.yaml, condition: "${minuet_feature_auto_humidistat}"}
+  - !include preset_template_thermostat.yaml

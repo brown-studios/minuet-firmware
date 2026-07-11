@@ -1,0 +1,10 @@
+# MINUET AUTO MODE GOVERNOR PACKAGE
+
+esphome:
+  includes:
+    - minuet/auto_mode/governor.h
+
+packages:
+  - !include controllers/controllers.yaml
+  - !include presets/presets.yaml
+  - !include sensors/sensors.yaml

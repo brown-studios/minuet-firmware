@@ -1,0 +1,175 @@
+# MINUET AIR QUALITY ACCESSORY PACKAGE
+#
+# Reads sensors from the air quality sensor accessory.
+# Refer to the air quality accessory documentation for details.
+
+substitutions:
+  # The PMSA003I I2C address.
+  minuet_air_quality_pmsa003i_i2c_address: 0x12
+  # Offer sensors for automatic control.
+  minuet_auto_sensors:
+    aqi:
+      - name: PMSA003I
+        sensor_id: minuet_air_quality_aqi
+        priority: 500
+  # Disable components when accessory is not installed.
+  minuet_package_accessory_air_quality_setup_condition:
+    sensor:
+      - id: !extend minuet_air_quality_pmsa003i
+        setup_condition: !lambda 'return minuet::accessory::is_installed("air_quality");'
+
+esphome:
+  on_boot:
+    - priority: ${minuet_accessory_setup_priority}
+      then:
+        - lambda: |-
+            // Detect PMSA003I by reading the first few bytes of a packet
+            constexpr auto detect_pmsa003i = []{
+              uint8_t buffer[] = { 0x00, 0x00 };
+              return id(minuet_i2c).read(${minuet_air_quality_pmsa003i_i2c_address}, buffer, sizeof(buffer)) == esphome::i2c::NO_ERROR &&
+                    buffer[0] == 0x42 && buffer[1] == 0x4d;
+            };
+            // The PMSA003I typically takes 2.3 seconds to respond after power up.
+            const uint32_t READY_TIMEOUT_MS = 3000;
+            bool detected = false;
+            for (;;) {
+              detected = detect_pmsa003i();
+              if (detected || millis() >= READY_TIMEOUT_MS)
+                break;
+              delay(100);
+              App.feed_wdt();
+            }
+            if (!detected) {
+              id(minuet_air_quality_pm_1_0)->set_internal(true);
+              id(minuet_air_quality_pm_2_5)->set_internal(true);
+              id(minuet_air_quality_pm_10_0)->set_internal(true);
+              id(minuet_air_quality_aqi)->set_internal(true);
+              return; // accessory not detected
+            }
+
+            minuet::accessory::install({
+              .id = "air_quality",
+            });
+
+sensor:
+  - id: minuet_air_quality_pmsa003i
+    platform: pmsa003i
+    i2c_id: minuet_i2c
+    address: ${minuet_air_quality_pmsa003i_i2c_address}
+    pm_1_0:
+      id: minuet_air_quality_pm_1_0
+      name: "PM 1.0 from PMSA003I"
+      icon: mdi:chemical-weapon
+      accuracy_decimals: 1
+      filters:
+        - skip_initial: 10  # allow 30 seconds to warm up
+        - sliding_window_moving_average:
+            window_size: 20  # window of 60 seconds
+            send_every: 10  # every 30 seconds
+            send_first_at: 5  # after 15 seconds
+        - delta: 0.25
+        - round_to_multiple_of: 0.5
+    pm_2_5:
+      id: minuet_air_quality_pm_2_5
+      name: "PM 2.5 from PMSA003I"
+      icon: mdi:chemical-weapon
+      accuracy_decimals: 1
+      filters:
+        - skip_initial: 10  # allow 30 seconds to warm up
+        - sliding_window_moving_average:
+            window_size: 20  # window of 60 seconds
+            send_every: 10  # every 30 seconds
+            send_first_at: 5  # after 15 seconds
+        - delta: 0.25
+        - round_to_multiple_of: 0.5
+    pm_10_0:
+      id: minuet_air_quality_pm_10_0
+      name: "PM 10.0 from PMSA003I"
+      icon: mdi:chemical-weapon
+      accuracy_decimals: 1
+      filters:
+        - skip_initial: 10  # allow 30 seconds to warm up
+        - sliding_window_moving_average:
+            window_size: 20  # window of 60 seconds
+            send_every: 10  # every 30 seconds
+            send_first_at: 5  # after 15 seconds
+        - delta: 0.25
+        - round_to_multiple_of: 0.5
+    # pmc_0_3:
+    #   id: minuet_air_quality_pmc_0_3
+    #   name: "PMC >0.3µm from PMSA003I"
+    #   icon: mdi:chemical-weapon
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - skip_initial: 10  # allow 30 seconds to warm up
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    #         send_first_at: 10
+    # pmc_0_5:
+    #   id: minuet_air_quality_pmc_0_5
+    #   name: "PMC >0.5µm from PMSA003I"
+    #   icon: mdi:chemical-weapon
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - skip_initial: 10  # allow 30 seconds to warm up
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    #         send_first_at: 10
+    # pmc_1_0:
+    #   id: minuet_air_quality_pmc_1_0
+    #   name: "PMC >1µm from PMSA003I"
+    #   icon: mdi:chemical-weapon
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - skip_initial: 10  # allow 30 seconds to warm up
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    #         send_first_at: 10
+    # pmc_2_5:
+    #   id: minuet_air_quality_pmc_2_5
+    #   name: "PMC >2.5µm from PMSA003I"
+    #   icon: mdi:chemical-weapon
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - skip_initial: 10  # allow 30 seconds to warm up
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    #         send_first_at: 10
+    # pmc_5_0:
+    #   id: minuet_air_quality_pmc_5_0
+    #   name: "PMC >5µm from PMSA003I"
+    #   icon: mdi:chemical-weapon
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - skip_initial: 10  # allow 30 seconds to warm up
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    #         send_first_at: 10
+    # pmc_10_0:
+    #   id: minuet_air_quality_pmc_10_0
+    #   name: "PMC >10µm from PMSA003I"
+    #   icon: mdi:chemical-weapon
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - skip_initial: 10  # allow 30 seconds to warm up
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    #         send_first_at: 10
+    update_interval: 3s  # PMSA003I internally updates every 2.3 s
+  - platform: aqi
+    id: minuet_air_quality_aqi
+    name: "AQI from PMSA003I"
+    icon: mdi:chemical-weapon
+    pm_2_5: minuet_air_quality_pm_2_5
+    pm_10_0: minuet_air_quality_pm_10_0
+    calculation_type: AQI
+    extended_range: true
+
+packages:
+  - ${minuet_package_accessory_air_quality_setup_condition if minuet_esphome_has_setup_condition else {}}

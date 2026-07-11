@@ -1,0 +1,133 @@
+# MINUET AUTO MODE HUMIDISTAT PACKAGE
+#
+# Monitors indoor humidity and calls for ventilation when a threshold is exceeded.
+
+substitutions:
+  minuet_auto_humidistat_default_on: false
+  minuet_auto_humidistat_default_clear_threshold: 60  # in %
+  minuet_auto_humidistat_default_trigger_threshold: 90  # in %
+  minuet_auto_humidistat_default_fan_speed: 3  # from 0 to 10
+  minuet_auto_humidistat_default_minimum_temperature: 15  # in °C
+  minuet_auto_humidistat_default_maximum_runtime: 15  # in minutes
+
+esphome:
+  build_flags:
+    - "-DMINUET_AUTO_HUMIDISTAT"
+    - "-DMINUET_AUTO_HUMIDISTAT_DEFAULT_ON=${1 if minuet_auto_humidistat_default_on else 0}"
+  includes:
+    - minuet/auto_mode/controllers/humidistat.h
+
+climate:
+  - id: minuet_auto_humidistat
+    name: "Auto humidistat"
+    icon: mdi:thermostat-auto
+    platform: template
+    supports_action: true
+    supports_current_humidity: ${minuet_auto_sensors.humidity|length != 0}
+    supports_current_temperature: ${minuet_auto_sensors.temperature|length != 0}
+    supported_modes:
+      - "OFF"
+      - AUTO
+    supported_presets: ${minuet_auto_presets}
+    custom_presets: ${minuet_auto_custom_presets}
+    optimistic: true
+    restore_mode: RESTORE
+    initial_state:
+      mode: ${"AUTO" if minuet_auto_humidistat_default_on else "OFF"}
+    on_control:
+      then:
+        lambda: |-
+          minuet::auto_mode::set_active_preset_from_climate_call(x);
+    on_state:
+      then:
+        lambda: |-
+          static esphome::climate::ClimateMode last_mode{};
+          if (x.mode != last_mode) {
+            last_mode = x.mode;
+            minuet::auto_mode::schedule_governor_update();
+          }
+
+number:
+  - id: minuet_auto_humidistat_fan_speed
+    name: "Auto humidistat fan speed"
+    icon: mdi:thermostat-cog
+    platform: template
+    min_value: 0
+    max_value: 10
+    step: 1
+    initial_value: ${minuet_auto_humidistat_default_fan_speed}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_humidistat_clear_threshold
+    name: "Auto humidistat clear threshold"
+    icon: mdi:thermostat-cog
+    platform: template
+    unit_of_measurement: '%'
+    device_class: humidity
+    min_value: 0
+    max_value: 100
+    step: 1
+    initial_value: ${minuet_auto_humidistat_default_clear_threshold}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_humidistat_trigger_threshold
+    name: "Auto humidistat trigger threshold"
+    icon: mdi:thermostat-cog
+    platform: template
+    unit_of_measurement: '%'
+    device_class: humidity
+    min_value: 0
+    max_value: 100
+    step: 1
+    initial_value: ${minuet_auto_humidistat_default_trigger_threshold}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_humidistat_minimum_temperature
+    name: "Auto humidistat minimum temperature"
+    icon: mdi:thermostat-cog
+    platform: template
+    unit_of_measurement: '°C'
+    device_class: temperature
+    min_value: -5.0
+    max_value: 50.0
+    step: 0.5
+    initial_value: ${minuet_auto_humidistat_default_minimum_temperature}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_humidistat_maximum_runtime
+    name: "Auto humidistat maximum runtime"
+    icon: mdi:thermostat-cog
+    platform: template
+    unit_of_measurement: 'min'
+    device_class: duration
+    min_value: 1
+    max_value: 60
+    step: 1
+    initial_value: ${minuet_auto_humidistat_default_maximum_runtime}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
