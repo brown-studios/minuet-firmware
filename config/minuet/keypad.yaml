@@ -1,0 +1,70 @@
+# MINUET KEYPAD PACKAGE
+#
+# Handles input from the keypad and wired 4 key or 6 key remote.
+# Provides visual and audible feedback for user actions.
+
+substitutions:
+  minuet_keypad_indicator_poll_interval_ms: 150
+
+esphome:
+  includes:
+    - minuet/keypad.h
+  build_flags:
+    - "-DMINUET_KEYPAD_INDICATOR_POLL_INTERVAL_MS=${minuet_keypad_indicator_poll_interval_ms}"
+
+select:
+  - id: minuet_keypad_controls
+    platform: template
+    name: "Keypad controls"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    options:
+      - Enhanced
+      - Standard
+    on_value:
+      then:
+        - lambda: |-
+            if (i == 1) {
+              // Reset some settings that can't be changed with the keypad using standard controls
+              // although they can still be controlled via the ESPHome API
+              id(minuet_auto_thermostat).make_call().set_fan_mode(CLIMATE_FAN_AUTO).perform();
+              id(minuet_auto_fan_direction).make_call().select_first().perform();
+              id(minuet_auto_lid_position).make_call().select_first().perform();
+            }
+  - id: minuet_keypad_indicators
+    platform: template
+    name: "Keypad indicators"
+    icon: mdi:led-on
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    options:
+      - "Default"
+      - Sleep
+
+output:
+  - id: minuet_keypad_indicator_auto
+    platform: gpio
+    pin:
+      pca9554: minuet_xio
+      number: 0
+      mode: output
+      inverted: true
+  - id: minuet_keypad_indicator_rain
+    platform: gpio
+    pin:
+      pca9554: minuet_xio
+      number: 1
+      mode: output
+      inverted: true
+
+interval:
+  - interval: 10ms
+    then:
+      - lambda: |-
+          minuet::keypad::keypad.poll_keys();
+  - interval: ${minuet_keypad_indicator_poll_interval_ms}ms
+    then:
+      - lambda: |-
+          minuet::keypad::keypad.poll_indicators();

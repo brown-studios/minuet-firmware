@@ -1,0 +1,140 @@
+# MINUET AUTO MODE CO2 MONITOR PACKAGE
+#
+# Monitors indoor CO2 concentration and calls for ventilation when thresholds are exceeded.
+
+substitutions:
+  minuet_auto_co2_monitor_default_on: false
+  minuet_auto_co2_monitor_default_clear_threshold: 500  # in ppm
+  minuet_auto_co2_monitor_default_level_1_threshold: 800  # in ppm
+  minuet_auto_co2_monitor_default_level_1_fan_speed: 0  # from 0 to 10
+  minuet_auto_co2_monitor_default_level_2_threshold: 1200  # in ppm
+  minuet_auto_co2_monitor_default_level_2_fan_speed: 3  # from 0 to 10
+
+esphome:
+  build_flags:
+    - "-DMINUET_AUTO_CO2_MONITOR"
+    - "-DMINUET_AUTO_CO2_MONITOR_DEFAULT_ON=${1 if minuet_auto_co2_monitor_default_on else 0}"
+  includes:
+    - minuet/auto_mode/controllers/co2_monitor.h
+
+climate:
+  - id: minuet_auto_co2_monitor
+    name: "Auto CO₂ monitor"
+    icon: mdi:thermostat-auto
+    platform: template
+    supports_action: true
+    supported_modes:
+      - "OFF"
+      - AUTO
+    supported_presets: ${minuet_auto_presets}
+    custom_presets: ${minuet_auto_custom_presets}
+    optimistic: true
+    restore_mode: RESTORE
+    initial_state:
+      mode: ${"AUTO" if minuet_auto_co2_monitor_default_on else "OFF"}
+    on_control:
+      then:
+        lambda: |-
+          minuet::auto_mode::set_active_preset_from_climate_call(x);
+    on_state:
+      then:
+        lambda: |-
+          static esphome::climate::ClimateMode last_mode{};
+          if (x.mode != last_mode) {
+            last_mode = x.mode;
+            minuet::auto_mode::schedule_governor_update();
+          }
+
+number:
+  - id: minuet_auto_co2_monitor_level_1_fan_speed
+    name: "Auto CO₂ monitor level 1 fan speed"
+    icon: mdi:thermostat-cog
+    platform: template
+    min_value: 0
+    max_value: 10
+    step: 1
+    initial_value: ${minuet_auto_co2_monitor_default_level_1_fan_speed}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_co2_monitor_level_2_fan_speed
+    name: "Auto CO₂ monitor level 2 fan speed"
+    icon: mdi:thermostat-cog
+    platform: template
+    min_value: 0
+    max_value: 10
+    step: 1
+    initial_value: ${minuet_auto_co2_monitor_default_level_2_fan_speed}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_co2_monitor_clear_threshold
+    name: "Auto CO₂ monitor clear threshold"
+    icon: mdi:thermostat-cog
+    platform: template
+    unit_of_measurement: 'ppm'
+    device_class: carbon_dioxide
+    min_value: 400
+    max_value: 5000
+    step: 10
+    initial_value: ${minuet_auto_co2_monitor_default_clear_threshold}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_co2_monitor_level_1_threshold
+    name: "Auto CO₂ monitor level 1 threshold"
+    icon: mdi:thermostat-cog
+    platform: template
+    unit_of_measurement: 'ppm'
+    device_class: carbon_dioxide
+    min_value: 400
+    max_value: 5000
+    step: 10
+    initial_value: ${minuet_auto_co2_monitor_default_level_1_threshold}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_co2_monitor_level_2_threshold
+    name: "Auto CO₂ monitor level 2 threshold"
+    icon: mdi:thermostat-cog
+    platform: template
+    unit_of_measurement: 'ppm'
+    device_class: carbon_dioxide
+    min_value: 400
+    max_value: 5000
+    step: 10
+    initial_value: ${minuet_auto_co2_monitor_default_level_2_threshold}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+
+sensor:
+  - id: minuet_auto_co2_monitor_current_co2
+    name: "Auto CO₂ monitor current CO₂"
+    state_class: measurement
+    device_class: carbon_dioxide
+    unit_of_measurement: ppm
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    platform: template
+    update_interval: never
