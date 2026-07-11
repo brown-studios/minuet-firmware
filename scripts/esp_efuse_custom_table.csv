@@ -1,0 +1,7 @@
+USER_DATA.BOARD_SERIES,                     EFUSE_BLK3,     0,  10,
+USER_DATA.BOARD_VERSION_MAJOR,              EFUSE_BLK3,     10, 5,
+USER_DATA.BOARD_VERSION_MINOR,              EFUSE_BLK3,     15, 5,
+USER_DATA.BOARD_PATCH_A,                    EFUSE_BLK3,     20, 1,
+USER_DATA.BOARD_PATCH_B,                    EFUSE_BLK3,     21, 1,
+USER_DATA.BOARD_PATCH_C,                    EFUSE_BLK3,     22, 1,
+USER_DATA.BOARD_PATCH_D,                    EFUSE_BLK3,     23, 1,

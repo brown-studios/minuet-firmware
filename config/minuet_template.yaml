@@ -1,0 +1,176 @@
+# MINUET TEMPLATE CONFIGURATION FOR FIRMWARE CUSTOMIZATION
+#
+# Use this template when you adopt Minuet into Home Assistant and will be customizing
+# the Minuet firmware instead of using the factory configuration.  This template assumes
+# that you will embed network credentials directly into the configuration or its
+# associated secrets file instead of provisioning them with Improv.
+#
+# IMPORTANT: Before installing this configuration onto a device, edit the template to
+# provide unique network credentials for the components that need them for security.
+#
+# Refer to https://github.com/brown-studios/minuet-firmware for further instructions.
+
+substitutions:
+  # The name to assign to the device on the network.
+  name: "minuet"
+
+  # If true, the name will be suffixed with the device's MAC address to make it unique when the same
+  # configuration is installed on multiple devices in the same network.
+  name_add_mac_suffix: true
+
+  # A friendly human-readable name for the device in the user interface.
+  friendly_name: "Minuet"
+
+  # A comment to further describe the device in the user interface.
+  comment: "Minuet fan controller"
+
+  # The logger log level: VERBOSE, DEBUG, INFO, WARN, ERROR.
+  logger_level: DEBUG
+
+  # The logger baud rate.
+  # The baud rate for writing log messages to the serial port (and over USB).
+  # Use 0 to disable serial port log output and reduce overhead in the main loop.
+  # Use 921600 (or some other non-zero value) to enable serial port log output for debugging.
+  logger_baud_rate: 921600
+
+  # Configure the Bluetooth radio.
+  #
+  # The `bluetooth_radio_restore_mode` determines the initial state of the Bluetooth radio and whether the
+  # setting is saved and restored across reboots.  Options are: `RESTORE_DEFAULT_OFF`, `RESTORE_DEFAULT_ON`,
+  # `ALWAYS_OFF`, and `ALWAYS_ON`.
+  bluetooth_radio_enabled: true
+  bluetooth_radio_restore_mode: RESTORE_DEFAULT_ON
+
+  # Configure the WiFi radio.
+  #
+  # The `wifi_radio_restore_mode` determines the initial state of the WiFi radio and whether the setting is
+  # saved and restored across reboots.  Options are: `RESTORE_DEFAULT_OFF`, `RESTORE_DEFAULT_ON`,
+  # `ALWAYS_OFF`, and `ALWAYS_ON`.
+  wifi_radio_enabled: true
+  wifi_radio_restore_mode: RESTORE_DEFAULT_ON
+
+  # Configure the WiFi network credentials.
+  #
+  # Minuet will attempt to automatically connect to one of these networks when the WiFi radio is on.
+  #
+  # This feature is enabled only if `wifi_radio_enabled` is true, `wifi_network_enabled` is true, and
+  # both `wifi_network_ssid` and `wifi_network_password` are not null.
+  #
+  # IMPORTANT: For security, never connect Minuet to public networks!
+  #
+  # Refer to https://esphome.io/components/wifi/
+  wifi_network_enabled: true
+  wifi_network_ssid:  # !secret wifi_ssid
+  wifi_network_password:  # !secret wifi_password
+  wifi_network_hidden: false
+
+  # Configure the WiFi fallback access point credentials and captive portal.
+  #
+  # When Minuet fails to connect to a WiFi network then it can create a fallback WiFi access point
+  # instead using these credentials.
+  #
+  # If `wifi_fallback_captive_portal` is true, the Minuet also sets up a captive portal.  Connect your computer
+  # to the fallback access point and navigate to http://192.168.4.1/ in a web browser to provide new WiFi network
+  # credentials.
+  #
+  # This feature is enabled only if `wifi_radio_enabled` is true, `wifi_fallback_enabled` is true, and
+  # both `wifi_fallback_ap_ssid` and `wifi_fallback_ap_password` are not null.
+  #
+  # IMPORTANT: For security, we recommend disabling the fallback access point or changing its default
+  # credentials while traveling away from home.
+  #
+  # Refer to https://esphome.io/components/wifi/#access-point-mode and https://esphome.io/components/captive_portal/
+  wifi_fallback_enabled: true
+  wifi_fallback_ap_ssid: "minuet-setup"
+  wifi_fallback_ap_password: "IAmAFan!"
+  wifi_fallback_captive_portal: true
+
+  # Accept API requests from the local network.
+  # Required for connecting to the device with the ESPHome tools and Home Assistant.
+  #
+  # This feature is enabled only if `api_enabled` is true and `api_encryption_key` is not null.
+  #
+  # IMPORTANT: Provide a secret encryption key as described in the ESPHome documentation to prevent
+  # unauthorized access.  It is a random 32 byte base 64 encoded string.
+  #
+  # Refer to https://esphome.io/components/api/
+  api_enabled: true
+  api_encryption_key:  # !secret my_api_encryption_key
+
+  # Accept over-the-air firmware updates from the local network.
+  # Required for flashing the firmware of the device with the ESPHome tools.
+  #
+  # This feature is enabled only if `ota_enabled` is true and `ota_password` is not null.
+  #
+  # IMPORTANT: Provide a secret password as described in the ESPHome documentation to prevent
+  # unauthorized access.  It is a string of characters of any length.
+  #
+  # Refer to https://esphome.io/components/ota/
+  ota_enabled: true
+  ota_password:  # !secret my_ota_password
+
+  # Specify where to find the Minuet main package.
+  # Uncomment exactly one of these values to determine the package origin for your configuration.
+  #
+  # REMOTE ORIGIN: Pull the latest version of Minuet from Github (default).
+  package_minuet_main: github://brown-studios/minuet-firmware/config/minuet/main.yaml@main
+  # LOCAL ORIGIN: Compile a local version of Minuet from a subdirectory.
+  # package_minuet_main: !include minuet/main.yaml
+
+  ### IMPLEMENTATION DETAILS ###
+
+  package_wifi_network:
+    wifi:
+      networks:
+        - ssid: ${wifi_network_ssid}
+          password: ${wifi_network_password}
+          hidden: ${wifi_network_hidden}
+  feature_wifi_network: ${wifi_radio_enabled and wifi_network_enabled and wifi_network_ssid and wifi_network_password}
+
+  package_wifi_ap:
+    wifi:
+      ap:
+        ssid: ${wifi_fallback_ap_ssid}
+        password: ${wifi_fallback_ap_password}
+        ap_timeout: 0s
+  feature_wifi_ap: ${wifi_radio_enabled and wifi_fallback_enabled and wifi_fallback_ap_ssid and wifi_fallback_ap_password}
+
+  package_captive_portal:
+    captive_portal:
+  feature_captive_portal: ${feature_wifi_ap and wifi_fallback_captive_portal}
+
+  package_api:
+    api:
+      encryption:
+        key: ${api_encryption_key}
+  feature_api: ${api_enabled and api_encryption_key}
+
+  package_ota:
+    ota:
+      - platform: esphome
+        password: ${ota_password}
+  feature_ota: ${ota_enabled and ota_password}
+
+  # Refer to minuet/main.yaml
+  minuet_feature_api: ${feature_api}
+  minuet_feature_diagnostics: true
+  minuet_feature_radio_bluetooth: ${bluetooth_radio_enabled}
+  minuet_feature_radio_wifi: ${feature_wifi_network or feature_wifi_ap}
+
+  # Refer to minuet/radio_bluetooth.yaml
+  minuet_radio_bluetooth_restore_mode: ${bluetooth_radio_restore_mode}
+
+  # Refer to minuet/radio_wifi.yaml
+  minuet_radio_wifi_restore_mode: ${wifi_radio_restore_mode}
+
+# Include the relevant packages for the enabled features.
+# You can extend this list with your own packages.
+#
+# Refer to https://esphome.io/components/packages/
+packages:
+  - ${package_minuet_main}
+  - ${package_wifi_network if feature_wifi_network else {}}
+  - ${package_wifi_ap if feature_wifi_ap else {}}
+  - ${package_captive_portal if feature_captive_portal else {}}
+  - ${package_api if feature_api else {}}
+  - ${package_ota if feature_ota else {}}

@@ -1,0 +1,62 @@
+# MINUET RADIO PACKAGE
+#
+# Controls whether the Bluetooth LE and WiFi radios are enabled or disabled and implements pairing mode.
+# The keypad can only control the radios jointly but fine grained control is available in the API.
+
+# Uses `defaults` instead of `substitutions` in optional package to prevent undefined variable
+# warning in minimal configuration.
+defaults:
+  # The duration of the pairing authorization window.
+  minuet_radio_pairing_mode_timeout: 120s
+
+substitutions:
+  # Optional packages.
+  minuet_package_radio_bluetooth: !include radio_bluetooth.yaml
+  minuet_package_radio_wifi: !include radio_wifi.yaml
+
+esphome:
+  includes:
+    - minuet/radio.h
+  build_flags:
+    - "-DMINUET_RADIO"
+
+switch:
+  - id: minuet_radio_pairing_mode
+    name: "Pairing mode"
+    icon: mdi:plus
+    platform: template
+    restore_mode: ALWAYS_OFF
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    turn_on_action:
+      then:
+        - lambda: |-
+            if (!id(minuet_radio_pairing_mode).state && minuet::radio::is_at_least_one_radio_on()) {
+              ESP_LOGI(minuet::TAG, "Pairing mode enabled");
+              id(minuet_radio_pairing_mode).publish_state(true);
+              id(minuet_radio_disable_pairing_mode_after_timeout).execute();
+            } else {
+              ESP_LOGI(minuet::TAG, "Pairing mode requested but no radios are on; please turn on the radios first");
+            }
+    turn_off_action:
+      then:
+        - lambda: |-
+            if (id(minuet_radio_pairing_mode).state) {
+              ESP_LOGI(minuet::TAG, "Pairing mode disabled");
+              id(minuet_radio_pairing_mode).publish_state(false);
+            }
+
+script:
+  - id: minuet_radio_disable_pairing_mode_after_timeout
+    mode: restart
+    then:
+      - delay: ${minuet_radio_pairing_mode_timeout}
+      - lambda: |-
+          if (id(minuet_radio_pairing_mode).state) {
+            ESP_LOGI(minuet::TAG, "Pairing mode disabled by timeout");
+            id(minuet_radio_pairing_mode).publish_state(false);
+          }
+
+packages:
+  - ${minuet_package_radio_bluetooth if minuet_feature_radio_bluetooth else {}}
+  - ${minuet_package_radio_wifi if minuet_feature_radio_wifi else {}}

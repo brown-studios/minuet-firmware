@@ -1,0 +1,35 @@
+# MINUET HARDWARE PACKAGE
+#
+# Identifies the Minuet hardware version so the firmware can confirm that it is running on
+# compatible hardware and implement workarounds for minor board revisions.
+
+substitutions:
+  # Assumed board information when the eFuses have not been set.
+  # Format: <major>.<minor><patch> where <patch> may contain the characters 'ABCD'.
+  # e.g. "4.0", "4.0A", "4.1BD"
+  minuet_board_assumed_version: "4.0"
+
+esphome:
+  includes:
+    - minuet/hardware.h
+  on_boot:
+    - priority: 999
+      then:
+        - lambda: |-
+            minuet::hardware::read_board_info();
+  build_flags:
+    - "-DMINUET_BOARD_ASSUMED_VERSION_MAJOR=${minuet_board_assumed_version.split('.')[0]}"
+    - "-DMINUET_BOARD_ASSUMED_VERSION_MINOR=${minuet_board_assumed_version.split('.')[1].rstrip('ABCD')}"
+    - "-DMINUET_BOARD_ASSUMED_PATCH_A=${1 if minuet_board_assumed_version.find('A') >= 0 else 0}"
+    - "-DMINUET_BOARD_ASSUMED_PATCH_B=${1 if minuet_board_assumed_version.find('B') >= 0 else 0}"
+    - "-DMINUET_BOARD_ASSUMED_PATCH_C=${1 if minuet_board_assumed_version.find('C') >= 0 else 0}"
+    - "-DMINUET_BOARD_ASSUMED_PATCH_D=${1 if minuet_board_assumed_version.find('D') >= 0 else 0}"
+
+text_sensor:
+  - id: minuet_board_info
+    name: "Board"
+    icon: mdi:information-variant
+    entity_category: diagnostic
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    platform: template
+    update_interval: never

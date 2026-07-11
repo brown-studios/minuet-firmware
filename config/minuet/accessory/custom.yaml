@@ -1,0 +1,32 @@
+# MINUET CUSTOM ACCESSORY PACKAGE
+#
+# Configures accessory ID 1 which is reserved for custom accessories developed by end-users.
+#
+# Tell Minuet that you have connected a custom accessory by shorting the expansion port ACC_ID pin to ground,
+# then add code to this package or to the top-level YAML file to configure your accessory's functions as
+# required.
+#
+# Please contact the Minuet project maintainers if you plan to manufacture an accessory to share with others
+# and need an assigned accessory ID for plug-and-play accessory detection.
+
+esphome:
+  on_boot:
+    - priority: ${minuet_accessory_setup_priority}
+      then:
+        - lambda: |-
+            // Detect whether your custom accessory is connected.
+            if (id(minuet_accessory_id).state != 1) {
+              return; // accessory not detected
+            }
+
+            // Install your custom accessory.
+            minuet::accessory::install({
+              .name = "custom",
+              // .handle_toggle = []() { },
+              // .handle_up = []() { },
+              // .handle_down = []() { },
+              // .handle_nec_code = [](esphome::remote_base::NECData code) { },
+              // .handle_safety_lock = [](bool state) { },
+            });
+
+# Add components for your custom accessory here

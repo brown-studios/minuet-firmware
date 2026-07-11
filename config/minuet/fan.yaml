@@ -1,0 +1,261 @@
+# MINUET FAN PACKAGE
+#
+# Drives the fan motor.  Coordination between the fan and the lid is handled elsewhere.
+#
+# Fan direction convention:
+#   - FanDirection::FORWARD is air in (intake) with positive RPM
+#   - FanDirection::REVERSE is air out (exhaust) with negative RPM
+
+substitutions:
+  # Motor profiles tell the motor driver how to control the motor.
+  # Don't modify these parameters unless you really know what you're doing; you could damage something!
+  # Refer to MotorProfile in fan.h for details.
+  minuet_fan_motor_profiles:
+    - name: Minuet kit motor (Default)
+      poles: 4
+      lead_angle_degrees: 0
+      motor_res: 74
+      motor_ind: 98
+      motor_bemf_const: 103
+      spd_loop_kp: 115
+      spd_loop_ki: 293
+      ipd_clk_freq: IPDClockFrequency::FREQ_1000_HZ
+      ipd_curr_thr: IPDCurrentThreshold::THRESHOLD_1_5_A
+      ol_ilimit: CurrentLimit::LIMIT_2_0_A
+      ol_acc_a1: OpenLoopAcceleration::ACCEL_2_5_HZ_S
+      ilimit: CurrentLimit::LIMIT_4_5_A
+      cl_slow_acc: ClosedLoopSlowAcceleration::ACCEL_3_0_HZ_S
+      cl_acc: ClosedLoopAcceleration::ACCEL_20_0_HZ_S
+      cl_dec: ClosedLoopDeceleration::ACCEL_NO_LIMIT
+      fan_speed_rpm_min: 200
+      fan_speed_rpm_max: 1200
+    # Alternative profile used for A/B testing different parameters
+    - name: Minuet kit motor (Alternative)
+      poles: 4
+      lead_angle_degrees: 0
+      motor_res: 74
+      motor_ind: 98
+      motor_bemf_const: 103
+      spd_loop_kp: 115
+      spd_loop_ki: 293
+      ipd_clk_freq: IPDClockFrequency::FREQ_1000_HZ
+      ipd_curr_thr: IPDCurrentThreshold::THRESHOLD_1_5_A
+      ol_ilimit: CurrentLimit::LIMIT_2_0_A
+      ol_acc_a1: OpenLoopAcceleration::ACCEL_2_5_HZ_S
+      ilimit: CurrentLimit::LIMIT_4_5_A
+      cl_slow_acc: ClosedLoopSlowAcceleration::ACCEL_3_0_HZ_S
+      cl_acc: ClosedLoopAcceleration::ACCEL_20_0_HZ_S
+      cl_dec: ClosedLoopDeceleration::ACCEL_NO_LIMIT
+      fan_speed_rpm_min: 200
+      fan_speed_rpm_max: 1200
+  # Optional packages.
+  minuet_package_fan_debug: !include fan_debug.yaml
+  minuet_package_fan_diagnostics: !include fan_diagnostics.yaml
+
+external_components:
+  # - source: github://brown-studios/esphome-mcf8316@main
+  #   components: [ mcf8316 ]
+  #   refresh: 1min
+  - source: ../../esphome-mcf8316/components/
+    components: [mcf8316]
+    refresh: 1min
+
+esphome:
+  includes:
+    - minuet/fan.h
+  on_boot:
+    - priority: 700  # after HARDWARE components (mcf8316)
+      then:
+        - lambda: |-
+            minuet::fan::hardware_setup_complete = true;
+            id(minuet_fan_motor_init).execute();
+  on_shutdown:
+    - priority: 500
+      then:
+        - lambda: |-
+            minuet::fan::motor_controller.shutdown();
+            id(minuet_fan_publish_status).execute();
+
+fan:
+  - id: minuet_fan
+    name: "Fan"
+    platform: template
+    has_direction: true
+    speed_count: 10
+    restore_mode: NO_RESTORE
+    on_state:
+      then:
+        - lambda: |-
+            // SAFETY LOCK CHECK: Fan cannot operate while safety lock is on
+            auto& fan = id(minuet_fan);
+            if (fan->state && !minuet::safety_lock::validate_operation(
+                {
+                  .description = "turn fan on",
+                  .stage = minuet::safety_lock::Stage::INITIATING,
+                  .rain_sensitive = true,
+                })) {
+              fan->make_call().set_state(false).perform();
+              return; // operation inhibited
+            }
+            ESP_LOGI(minuet::TAG, "Fan state: %s, speed %d, %s direction",
+                fan->state ? "on" : "off",
+                fan->speed,
+                fan->direction == esphome::fan::FanDirection::FORWARD ? "forward" : "reverse");
+            minuet::coordinator::coordinator.on_fan_state(fan->state, fan->speed, minuet::fan::direction_is_exhaust(fan->direction));
+
+            id(minuet_fan_motor_update).execute();
+
+mcf8316:
+  - id: minuet_fan_motor_driver
+    i2c_id: minuet_i2c
+    address: 0x01
+    wake:
+      pca9554: minuet_xio
+      number: 13
+      mode: output
+    nfault:
+      pca9554: minuet_xio
+      number: 12
+      mode: input
+    watchdog:
+      number: 22
+      mode: output
+    on_algorithm_state:
+      then:
+        - lambda: |-
+            const bool running = minuet::fan::motor_controller.is_algorithm_running();
+            const bool maybe_mismatched_inputs = minuet::fan::motor_controller.inputs_active() && !running;
+            const bool maybe_changed_keep_awake = minuet::fan::was_algorithm_running_during_last_motor_update != running;
+            if (maybe_mismatched_inputs || maybe_changed_keep_awake) {
+              id(minuet_fan_motor_update).execute();
+            }
+    on_fault:
+      then:
+        - lambda: |-
+            id(minuet_fan_publish_status).execute();
+            // TODO: Consider handling OTW (over-temperature warning) fault by reducing the fan speed
+            id(minuet_fan_handle_fault).execute(x.is_faulted());
+
+text_sensor:
+  - id: minuet_fan_status
+    name: "Fan status"
+    icon: mdi:fan-alert
+    entity_category: diagnostic
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    platform: template
+    update_interval: never
+
+script:
+  - id: minuet_fan_motor_init
+    then:
+      - lambda: |-
+          if (!minuet::fan::hardware_setup_complete) return; // suppress premature call
+
+          using namespace minuet::fan;
+          static constexpr MotorDescriptor MOTOR_DESCRIPTORS[] = {
+            <% for x in minuet_fan_motor_profiles %>
+            {
+              "${x.name}", {
+                .fg_div = fg_div_from_motor_poles(${x.poles}),
+                .lead_angle = lead_angle_from_degrees(${x.lead_angle_degrees}),
+                .motor_res = ${x.motor_res},
+                .motor_ind = ${x.motor_ind},
+                .motor_bemf_const = ${x.motor_bemf_const},
+                .spd_loop_kp = ${x.spd_loop_kp},
+                .spd_loop_ki = ${x.spd_loop_ki},
+                .ipd_clk_freq = ${x.ipd_clk_freq},
+                .ipd_curr_thr = ${x.ipd_curr_thr},
+                .ol_ilimit = ${x.ol_ilimit},
+                .ol_acc_a1 = ${x.ol_acc_a1},
+                .ilimit = ${x.ilimit},
+                .cl_slow_acc = ${x.cl_slow_acc},
+                .cl_acc = ${x.cl_acc},
+                .cl_dec = ${x.cl_dec},
+                .fan_speed_rpm_min = ${x.fan_speed_rpm_min},
+                .fan_speed_rpm_max = ${x.fan_speed_rpm_max},
+              }
+            },
+            <% endfor %>
+          };
+          static constexpr size_t DEFAULT_INDEX = 0;
+
+          size_t index = ${"id(minuet_fan_debug_motor_descriptor).active_index().value_or(DEFAULT_INDEX)" if minuet_feature_debug else "DEFAULT_INDEX"};
+          minuet::fan::motor_controller.init(MOTOR_DESCRIPTORS[index]);
+          id(minuet_fan_publish_status).execute();
+  - id: minuet_fan_motor_update
+    then:
+      - lambda: |-
+          if (!minuet::fan::hardware_setup_complete) return; // suppress premature call
+
+          const auto& fan = id(minuet_fan);
+          const bool fan_on = fan->state;
+          float speed_rpm = fan_on ? minuet::fan::motor_controller.get_fan_speed_rpm_for_index(fan->speed) : 0;
+          bool exhaust = minuet::fan::direction_is_exhaust(fan->direction);
+          bool brake = false; // braking happens automatically when speed reduced to zero
+          bool keep_awake = minuet::fan::was_algorithm_running_during_last_motor_update =
+              minuet::fan::motor_controller.is_algorithm_running();
+
+          ${""} // HACK: Convince esphome to parse this block as a Jinja expression
+          <% if minuet_feature_debug %>
+            if (fan_on) {
+              switch (id(minuet_fan_debug_speed).active_index().value_or(0)) {
+                case 1: // Override
+                  speed_rpm = id(minuet_fan_debug_speed_override).state;
+                  break;
+              }
+            }
+            switch (id(minuet_fan_debug_direction).active_index().value_or(0)) {
+              case 1: // Air out
+                exhaust = true;
+                break;
+              case 2: // Air in
+                exhaust = false;
+                break;
+            }
+            switch (id(minuet_fan_debug_brake).active_index().value_or(0)) {
+              case 1: // Brake off
+                brake = false;
+                break;
+              case 2: // Brake on
+                brake = true;
+                break;
+            }
+            switch (id(minuet_fan_debug_sleep).active_index().value_or(0)) {
+              case 1: // Keep awake
+                keep_awake = true;
+                break;
+            }
+          <% endif %>
+
+          if (!minuet::fan::motor_controller.set_state(speed_rpm, exhaust, brake, keep_awake)) {
+            ESP_LOGE(minuet::TAG, "Failed to set the fan driver state");
+            if (fan->state) {
+              minuet::tone::play("!fan_fault");
+              fan->turn_off().perform();
+            }
+          }
+  - id: minuet_fan_handle_fault
+    mode: restart  # Cancel the previous delay each time the state changes
+    parameters:
+      faulted: bool
+    then:
+      - if:
+          condition:
+            - lambda: 'return faulted;'
+          then:
+            - delay: 2s  # Allow time for the fault to resolve itself if it's transient or there's an automatic retry configured
+            - lambda: |-
+                ESP_LOGE(minuet::TAG, "Stopped the fan due to a persistent fault");
+                minuet::tone::play("!fan_fault");
+                id(minuet_fan).turn_off().perform();
+  - id: minuet_fan_publish_status
+    then:
+      - lambda: |-
+          std::string status = minuet::fan::motor_controller.format_status();
+          if (id(minuet_fan_status).state != status) {
+            id(minuet_fan_status).publish_state(status);
+          }
+
+packages:
+  - ${minuet_package_fan_debug if minuet_feature_debug else {}}
+  - ${minuet_package_fan_diagnostics if minuet_feature_diagnostics else {}}

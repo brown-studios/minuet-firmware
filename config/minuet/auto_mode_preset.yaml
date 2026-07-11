@@ -1,0 +1,106 @@
+# MINUET AUTO MODE PRESET PACKAGE
+#
+# This package is included once per preset to define the entities for configuring that preset.
+
+select:
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_fan_direction
+    platform: template
+    name: "Auto preset ${minuet_auto_preset_name} fan direction"
+    entity_category: config
+    optimistic: true
+    options:
+      - Auto
+      - Air out
+      - Air in
+    initial_option: ${minuet_auto_preset_fan_direction}
+    restore_value: true
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_lid_position
+    platform: template
+    name: "Auto preset ${minuet_auto_preset_name} lid position"
+    entity_category: config
+    optimistic: true
+    options:
+      - Auto
+      - Open
+      - Closed
+    initial_option: ${minuet_auto_preset_lid_position}
+    restore_value: true
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_thermostat_fan_mode
+    platform: template
+    name: "Auto preset ${minuet_auto_preset_name} thermostat fan mode"
+    entity_category: config
+    optimistic: true
+    options:
+      - Auto
+      - Quiet
+      - "Off"
+      - Mininum
+      - Low
+      - Medium
+      - High
+    initial_option: ${minuet_auto_preset_thermostat_fan_mode}
+    restore_value: true
+
+switch:
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_thermostat
+    platform: template
+    name: "Auto preset ${minuet_auto_preset_name} thermostat"
+    entity_category: config
+    optimistic: true
+    restore_mode: ${"RESTORE_DEFAULT_ON" if minuet_auto_preset_thermostat_enabled else "RESTORE_DEFAULT_OFF"}
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_humidistat
+    platform: template
+    name: "Auto preset ${minuet_auto_preset_name} humidistat"
+    entity_category: config
+    optimistic: true
+    restore_mode: ${"RESTORE_DEFAULT_ON" if minuet_auto_preset_humidistat_enabled else "RESTORE_DEFAULT_OFF"}
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_co2_monitor
+    platform: template
+    name: "Auto preset ${minuet_auto_preset_name} CO₂ monitor"
+    entity_category: config
+    optimistic: true
+    restore_mode: ${"RESTORE_DEFAULT_ON" if minuet_auto_preset_co2_monitor_enabled else "RESTORE_DEFAULT_OFF"}
+
+number:
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_thermostat_setpoint
+    name: "Auto preset ${minuet_auto_preset_name} thermostat setpoint"
+    icon: mdi:thermometer-auto
+    entity_category: config
+    device_class: temperature
+    unit_of_measurement: °C
+    mode: box
+    platform: template
+    optimistic: true
+    min_value: ${minuet_auto_thermostat_target_temperature_min}
+    max_value: ${minuet_auto_thermostat_target_temperature_max}
+    step: ${minuet_auto_thermostat_target_temperature_visual_step}
+    initial_value: ${minuet_auto_preset_thermostat_setpoint}
+    restore_value: true
+
+script:
+  - id: minuet_auto_preset_${minuet_auto_preset_id}_apply
+    mode: single
+    then:
+      lambda: |-
+        minuet::auto_mode::set_auto_fan_direction(
+            minuet::auto_mode::AutoFanDirection(
+                id(minuet_auto_preset_${minuet_auto_preset_id}_fan_direction)
+                    ->active_index().value_or(0)));
+
+        minuet::auto_mode::set_auto_lid_position(
+            minuet::auto_mode::AutoLidPosition(
+                id(minuet_auto_preset_${minuet_auto_preset_id}_lid_position)
+                    ->active_index().value_or(0)));
+
+        auto thermostat_call = id(minuet_auto_thermostat)->make_call()
+            .set_mode(id(minuet_auto_preset_${minuet_auto_preset_id}_thermostat).state ?
+                ClimateMode::CLIMATE_MODE_FAN_ONLY : ClimateMode::CLIMATE_MODE_AUTO)
+            .set_target_temperature(
+                id(minuet_auto_preset_${minuet_auto_preset_id}_thermostat_setpoint).state);
+        minuet::auto_mode::set_auto_thermostat_call_fan_mode(thermostat_call,
+            minuet::auto_mode::AutoFanMode(
+                id(minuet_auto_preset_${minuet_auto_preset_id}_thermostat_fan_mode)
+                    ->active_index().value_or(0)));
+        thermostat_call.perform();
+
+        // TODO: humidistat and CO2 monitor

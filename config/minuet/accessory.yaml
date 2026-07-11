@@ -1,0 +1,90 @@
+# MINUET ACCESSORY PACKAGE
+#
+# Configures accessories connected to the EXPANSION or I2C ports for a plug-and-play experience.
+# Each included accessory package checks whether its associated hardware is present before activating
+# its functionality.
+
+substitutions:
+  # The base setup priority for accessory configuration.
+  # This needs to happen early in the boot process after the IO busses are ready for use and before the firmware
+  # has started setting up components that might depend on the presence of accessories.
+  minuet_accessory_setup_priority: 990
+
+esphome:
+  includes:
+    - minuet/accessory.h
+  on_boot:
+    - priority: ${minuet_accessory_setup_priority + 1}
+      then:
+        - lambda: |-
+            if (minuet::hardware::is_before_version_and_patch(4, 0, minuet::hardware::PATCH_A)) {
+              // Wait for the capacitor on the ACC_ID pin to charge after power on.
+              delay(100);
+            }
+            id(minuet_accessory_id).update();
+
+sensor:
+  - id: minuet_accessory_id_voltage
+    platform: adc
+    pin: 6
+    attenuation: 12db
+    samples: 16
+    sampling_mode: avg
+    update_interval: never
+    setup_priority: ${minuet_accessory_setup_priority + 2}
+  - id: minuet_accessory_id_resistance
+    platform: resistance
+    sensor: minuet_accessory_id_voltage
+    configuration: DOWNSTREAM
+    resistor: 100kOhm
+    setup_priority: ${minuet_accessory_setup_priority + 2}
+  - id: minuet_accessory_id
+    name: "Accessory ID"
+    icon: mdi:developer-board
+    accuracy_decimals: 0
+    state_class: measurement
+    entity_category: diagnostic
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    platform: template
+    update_interval: never
+    setup_priority: ${minuet_accessory_setup_priority + 2}
+    lambda: |-
+      // Measure the resistance on the ACC_ID pin to identify the accessory plugged into the expansion port.
+      id(minuet_accessory_id_voltage).update();
+      const float v = id(minuet_accessory_id_voltage).state;
+      const float r = id(minuet_accessory_id_resistance).state;
+      int id = -1; // unknown accessory
+      if (std::isnan(r) || r < 0 || r > 1000000) {
+        id = 0; // no accessory (ACC_ID is open circuit)
+      } else {
+        constexpr std::array accessories{
+          0.f, 100000.f, 68000.f, 47000.f, 33000.f, 22000.f, 15000.f, 10000.f,
+          150000.f, 220000.f, 330000.f, 470000.f,
+        };
+        const float REL_TOLERANCE = 0.1;
+        const float ABS_TOLERANCE = 1000;
+        for (size_t i = 0; i < accessories.size(); i++) {
+          const float r_ideal = accessories[i];
+          const float r_tol = std::max(r_ideal * REL_TOLERANCE, ABS_TOLERANCE);
+          if (r > r_ideal - r_tol && r < r_ideal + r_tol) {
+            id = i + 1;
+            break;
+          }
+        }
+      }
+      ESP_LOGI(minuet::TAG, "Read ACC_ID expansion port pin: accessory id %d, %.3f V, %.3f ohm", id, v, r);
+      return id;
+
+text_sensor:
+  - id: minuet_accessory_list
+    name: "Installed accessories"
+    icon: mdi:developer-board
+    entity_category: diagnostic
+    platform: template
+    update_interval: never
+
+packages:
+  - !include accessory/air_quality.yaml
+  - !include accessory/custom.yaml
+  - !include accessory/environment.yaml
+  - !include accessory/light.yaml

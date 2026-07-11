@@ -1,0 +1,65 @@
+# MINUET FAILSAFE PACKAGE
+#
+# Restarts the firmware when critical components have failed.
+# Waits a few minutes before restarting to allow time for debugging.
+# Also provides restart and factory reset buttons for manual recovery.
+
+button:
+  - id: minuet_restart
+    platform: restart
+    name: "Restart"
+    icon: mdi:restart
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+  - id: minuet_factory_reset
+    platform: factory_reset
+    name: "Factory reset"
+    icon: mdi:restart-alert
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+
+script:
+  - id: minuet_failsafe_restart_after_delay
+    parameters:
+      cause: string
+    then:
+      - logger.log:
+          format: "Failsafe restart will be triggered after a delay: %s"
+          args: [cause.c_str()]
+          level: ERROR
+      - script.execute:
+          id: minuet_tone
+          name: "!failsafe_restart"
+      - delay: 180s
+      - logger.log:
+          format: "Failsafe restart happening now: %s"
+          args: [cause.c_str()]
+          level: ERROR
+      - script.execute:
+          id: minuet_tone
+          name: "!failsafe_restart"
+      - delay: 2s
+      - button.press: minuet_restart
+  - id: minuet_restart_after_delay
+    then:
+      - delay: 2s
+      - button.press: minuet_restart
+  - id: minuet_factory_reset_after_delay
+    then:
+      - delay: 2s
+      - button.press: minuet_factory_reset
+
+interval:
+  - interval: 1s
+    then:
+      lambda: |-
+        // Check for important component failures.
+        const char* cause = []() -> const char * {
+          if (id(minuet_fan_motor_driver).is_failed()) {
+            return "Fan motor driver component failed";
+          }
+          return nullptr;
+        }();
+        if (cause && !id(minuet_failsafe_restart_after_delay).is_running()) {
+          id(minuet_failsafe_restart_after_delay).execute(cause);
+        }

@@ -1,0 +1,44 @@
+# MINUET COORDINATOR PACKAGE
+#
+# Coordinates fan and lid state changes and implements persistence for power-on restore.
+
+esphome:
+  includes:
+    - minuet/coordinator.h
+  on_boot:
+    - priority: 500
+      then:
+        - lambda: |-
+            minuet::coordinator::coordinator.on_boot();
+
+select:
+  - id: minuet_power_on_behavior
+    platform: template
+    name: "Power on behavior"
+    icon: mdi:backup-restore
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    options:
+      - "Off"
+      - "Restore"
+
+event:
+  - id: minuet_mode_change
+    platform: template
+    name: "Mode change"
+    icon: mdi:thermostat
+    event_types:
+      - "Manual"
+      - "Manual override"
+      - "Auto"
+
+button:
+  - id: minuet_manual_override
+    platform: template
+    name: "Manual override"
+    icon: mdi:thermostat
+    on_press:
+      then:
+        - lambda: |-
+            minuet::coordinator::command_manual_override();

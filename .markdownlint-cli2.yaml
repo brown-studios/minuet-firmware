@@ -1,0 +1,9 @@
+config:
+  line-length: false
+  no-blanks-blockquote: false
+  no-inline-html:
+    allowed_elements:
+      - summary
+      - details
+  ul-style:
+    style: dash

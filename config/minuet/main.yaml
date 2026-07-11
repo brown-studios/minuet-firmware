@@ -1,0 +1,136 @@
+# MINUET MAIN PACKAGE
+#
+# The main package includes the packages that implement each subsystem of the Minuet firmware
+# as required to support the enabled features.  In turn, the main package should be included
+# by configuration file with the relevant substitution variables to compile the firmware for
+# a specific device.
+#
+# Use `substitutions`, `!include`, `!extend`, and `!remove` YAML to customize the firmware.
+# We recommend not directly modifying the packages in this directory to facilitate future upgrades.
+
+substitutions:
+  # The name to assign to the device on the network.
+  name: "minuet"
+
+  # If true, the name will be suffixed with the device's MAC address to make it unique when the same
+  # configuration is installed on multiple devices in the same network.
+  name_add_mac_suffix: true
+
+  # A friendly human-readable name for the device in the user interface.
+  friendly_name: "Minuet"
+
+  # A comment to further describe the device in the user interface.
+  comment: "Minuet fan controller"
+
+  # The logger log level: VERBOSE, DEBUG, INFO, WARN, ERROR.
+  logger_level: DEBUG
+
+  # The logger baud rate.
+  # The baud rate for writing log messages to the serial port (and over USB).
+  # Use 0 to disable serial port log output and reduce overhead in the main loop.
+  # Use 921600 (or some other non-zero value) to enable serial port log output for debugging.
+  logger_baud_rate: 921600
+
+  # Whether to enable API integration with Home Assistant and ESPHome tools.
+  # Requires `minuet_feature_radio_wifi` to be true for connectivity.
+  #
+  # SECURITY NOTE: The outer configuration is responsible for supplying default credentials, if any.
+  minuet_feature_api: false
+
+  # Whether to enable debugging entities to experiment with motor parameter tuning and include
+  # more information in the log for development and testing.
+  minuet_feature_debug: false
+
+  # Whether to enable diagnostics entities to monitor fan and lid motor operation.
+  minuet_feature_diagnostics: false
+
+  # Whether to enable external provisioning of credentials as used in the factory configuration.
+  # Requires `minuet_feature_radio_bluetooth` and `minuet_feature_radio_wifi` to be true for connectivity.
+  minuet_feature_provisioning: false
+
+  # Whether to enable Bluetooth LE connectivity.
+  minuet_feature_radio_bluetooth: false
+
+  # Whether to enable WiFi connectivity.
+  #
+  # SECURITY NOTE: The outer configuration is responsible for supplying default credentials, if any.
+  minuet_feature_radio_wifi: false
+
+  # Whether to leave non-essential entities disabled by default.
+  minuet_use_disabled_by_default: ${not minuet_feature_debug}
+
+  # Optional packages.
+  minuet_package_api: !include api.yaml
+  minuet_package_diagnostics: !include diagnostics.yaml
+  minuet_package_provisioning: !include provisioning.yaml
+  minuet_package_radio: !include radio.yaml
+
+# Configure the tools and build environment.
+esphome:
+  # Device identification.
+  name: ${name}
+  name_add_mac_suffix: ${name_add_mac_suffix}
+  friendly_name: ${friendly_name}
+  comment: ${comment}
+  # Describes the Minuet firmware implemented by these packages.
+  # The project version number should be bumped as part of each release.
+  project:
+    name: "brown-studios.minuet"
+    version: "4.0.0"
+  # The minimum version of ESPHome required to compile these packages.
+  # Newer versions of ESPHome should work too but may have breaking changes that cause problems.
+  min_version: "2026.8.0"
+  # C++ include files (some packages include more of them).
+  includes:
+    - minuet/utility.h
+
+# Configure the microcontroller and framework.
+esp32:
+  board: esp32-c6-devkitm-1
+  framework:
+    type: esp-idf
+
+# Configure logging over the USB serial port.
+logger:
+  level: ${logger_level}
+  baud_rate: ${logger_baud_rate}
+
+# Configure the I2C bus for on-board devices and optional accessories.
+i2c:
+  - id: minuet_i2c
+    scl:
+      number: 18
+    sda:
+      number: 8
+      ignore_strapping_warning: true
+    scan: true
+    frequency: 100kHz
+
+# Configure the TCA9555 chip which provides 16 additional GPIO pins collectively
+# referred to as the XIO pins.
+pca9554:
+  - id: minuet_xio
+    i2c_id: minuet_i2c
+    address: 0x20
+    pin_count: 16
+
+# Include the rest of the packages.
+packages:
+  - !include accessory.yaml
+  - !include auto_mode.yaml
+  - !include battery.yaml
+  - !include coordinator.yaml
+  - !include failsafe.yaml
+  - !include fan.yaml
+  - !include hardware.yaml
+  - !include ir_receiver.yaml
+  - !include keypad.yaml
+  - !include lid.yaml
+  - !include rain_sensor.yaml
+  - !include safety_lock.yaml
+  - !include thermistor.yaml
+  - !include tone.yaml
+  - ${minuet_package_api if minuet_feature_api else {}}
+  - ${minuet_package_diagnostics if minuet_feature_diagnostics else {}}
+  - ${minuet_package_provisioning if minuet_feature_provisioning else {}}
+  - ${minuet_package_radio if minuet_feature_radio_bluetooth or minuet_feature_radio_wifi else {}}

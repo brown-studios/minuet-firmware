@@ -1,0 +1,16 @@
+# MINUET AUTO MODE SENSOR PACKAGE
+#
+# This package is included once per selectable sensor.
+
+esphome:
+  build_flags:
+    - "-DMINUET_AUTO_SENSORS_${minuet_auto_sensor_id|upper}=${minuet_auto_sensors|sort(attribute='priority', reverse=true)|map(attribute='sensor_id')|join(',')}"
+
+select:
+  - id: minuet_auto_sensor_${minuet_auto_sensor_id}
+    name: "Auto sensor ${minuet_auto_sensor_name}"
+    platform: template
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    options: ${['Auto'] + minuet_auto_sensors|sort(attribute='priority', reverse=true)|map(attribute='name')|list}

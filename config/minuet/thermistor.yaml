@@ -1,0 +1,54 @@
+# MINUET THERMISTOR PACKAGE
+#
+# Monitors the ambient temperature from the on-board thermistor.
+#
+# This sensor typically drives the thermostat unless an accessory is used instead.  Make sure to
+# query the climate component's temperature attribute when you need the value that is actually being
+# regulated by climate control governor.
+
+sensor:
+  - id: minuet_thermistor_voltage
+    platform: adc
+    pin: 3
+    attenuation: 12db
+    samples: 4
+    sampling_mode: avg
+    update_interval: never
+  - id: minuet_thermistor_resistance
+    platform: resistance
+    sensor: minuet_thermistor_voltage
+    configuration: DOWNSTREAM
+    resistor: 10kOhm
+  - id: minuet_thermistor_temperature
+    name: "Temperature from thermistor"
+    platform: ntc
+    sensor: minuet_thermistor_resistance
+    calibration:
+      b_constant: 3950
+      reference_temperature: 25°C
+      reference_resistance: 10kOhm
+    accuracy_decimals: 1
+    filters:
+      - sliding_window_moving_average:
+          window_size: 15
+          send_every: 5
+          send_first_at: 5
+      - delta: 0.05
+      - round_to_multiple_of: 0.1
+
+output:
+  - id: minuet_thermistor_power
+    platform: gpio
+    pin:
+      pca9554: minuet_xio
+      number: 9
+      mode: output
+      inverted: false
+
+interval:
+  - interval: 1s
+    then:
+      lambda: |-
+        id(minuet_thermistor_power).turn_on();
+        id(minuet_thermistor_voltage).update();
+        id(minuet_thermistor_power).turn_off();

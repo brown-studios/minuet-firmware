@@ -1,0 +1,112 @@
+# MINUET RAIN SENSOR PACKAGE
+#
+# Monitors the rain sensor and latches the rain safety lock to close the lid when it rains.
+# When the rain sensor contacts are wet, they form a voltage divider which is sensed by the ADC and used
+# to estimate the resistance between the contacts.
+
+substitutions:
+  # Wet when the resistance is below this threshold for the specified time.
+  minuet_rain_sensor_resistance_threshold_wet: 800000  # in ohms
+  minuet_rain_sensor_delay_wet: 5  # in seconds
+  # Dry when the resistance is above this threshold for the specified time.
+  minuet_rain_sensor_resistance_threshold_dry: 1200000  # in ohms
+  minuet_rain_sensor_delay_dry: 5  # in seconds
+  # The sum of the resistors on the high and low sides of the voltage divider.
+  minuet_rain_sensor_resistance_offset_high: 200000  # in ohms
+  minuet_rain_sensor_resistance_offset_low: 200000  # in ohms
+  # The maximum resistance value to report to suppress sensor noise beyond the range of interest.
+  minuet_rain_sensor_resistance_max: 2000000  # in ohms
+  # The lid motor poll interval.
+  minuet_rain_sensor_poll_interval: 0.05  # in seconds
+  # Optional packages.
+  minuet_package_rain_sensor_diagnostics: !include rain_sensor_diagnostics.yaml
+
+sensor:
+  - id: minuet_rain_sensor_voltage
+    entity_category: diagnostic
+    platform: adc
+    pin:
+      number: 2
+    attenuation: 12db
+    samples: 4
+    sampling_mode: avg
+    update_interval: ${minuet_rain_sensor_poll_interval}s
+  - id: minuet_rain_sensor_resistance
+    platform: resistance
+    sensor: minuet_rain_sensor_voltage
+    configuration: DOWNSTREAM
+    resistor: ${minuet_rain_sensor_resistance_offset_high}
+    filters:
+      - offset: ${-minuet_rain_sensor_resistance_offset_low}
+      - clamp:
+          max_value: ${minuet_rain_sensor_resistance_max}
+    on_value:
+      then:
+        lambda: |-
+          id(minuet_rain_sensor_resistance_filtered).update();
+
+binary_sensor:
+  - id: minuet_rain
+    name: "Rain sensor"
+    icon: mdi:weather-rainy
+    device_class: moisture
+    entity_category: diagnostic
+    platform: analog_threshold
+    sensor_id: minuet_rain_sensor_resistance
+    threshold:
+      lower: ${minuet_rain_sensor_resistance_threshold_wet}
+      upper: ${minuet_rain_sensor_resistance_threshold_dry}
+    trigger_on_initial_state: true
+    filters:
+      - invert:
+      - delayed_on_off:
+          time_on: ${minuet_rain_sensor_delay_wet}s
+          time_off: ${minuet_rain_sensor_delay_dry}s
+    on_state:
+      then:
+        - script.execute: minuet_rain_sensor_update
+
+switch:
+  - id: minuet_rain_sensor_enabled
+    name: "Rain sensor enabled"
+    icon: mdi:weather-rainy
+    platform: template
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_state:
+      then:
+        - script.execute: minuet_rain_sensor_update
+
+button:
+  - id: minuet_rain_sensor_reset
+    name: "Reset rain sensor"
+    icon: mdi:weather-rainy
+    platform: template
+    on_press:
+      then:
+        - lambda: |-
+            if (id(minuet_rain_sensor_enabled).state) {
+              id(minuet_rain_safety_lock_latched).publish_state(false);
+              id(minuet_rain_sensor_update).execute();
+            } else {
+              id(minuet_rain_sensor_enabled).turn_on();
+            }
+
+script:
+  - id: minuet_rain_sensor_update
+    mode: single
+    then:
+      - lambda: |-
+          if (id(minuet_rain_sensor_enabled).state) {
+            if (id(minuet_rain).state) {
+              id(minuet_rain_safety_lock).publish_state(true);
+            } else if (!id(minuet_rain_safety_lock_latched).state) {
+              id(minuet_rain_safety_lock).publish_state(false);
+            }
+          } else {
+            id(minuet_rain_safety_lock_latched).publish_state(false);
+            id(minuet_rain_safety_lock).publish_state(false);
+          }
+
+packages:
+  - ${minuet_package_rain_sensor_diagnostics if minuet_feature_diagnostics else {}}

@@ -1,0 +1,65 @@
+# MINUET PROVISIONING PACKAGE
+#
+# Supports provisioning WiFi credentials and API encrytion.
+#
+# SECURITY NOTES:
+#
+#   - Provisioning is optional; it is only needed to establish network connectivity.
+#   - Provisioning must be completed promptly after boot; otherwise the device must be rebooted
+#     to reopen the provisioning window.
+#   - Improv over Serial has no authorizer because the user must have physical access to plug a
+#     USB cable into the device.  They could just as easily flash new firmware over USB.
+#   - Improv over BLE requires the user to enable the radios (which are disabled by default)
+#     and authorize pairing with the keypad then provision credentials over BLE.
+#   - Unauthenticated clients can connect to the API server to setup API encryption only
+#     during the provisioning window.
+
+# Uses `defaults` instead of `substitutions` in optional package to prevent undefined variable
+# warning in minimal configuration.
+defaults:
+  # The duration of the provisioning window after boot.
+  minuet_provisioning_timeout: 300s
+  # The URL to load after successful provisioning.
+  minuet_provisioning_next_url: "https://my.home-assistant.io/redirect/config_flow_start?domain=esphome"
+
+provisioning:
+  timeout: ${minuet_provisioning_timeout}
+
+improv_serial:
+  id: minuet_improv_serial
+  next_url: ${minuet_provisioning_next_url}
+
+esp32_improv:
+  id: minuet_improv_ble
+  authorizer: minuet_improv_authorizer
+  authorized_duration: 1s  # authorization times out shortly after pairing mode stops
+  next_url: ${minuet_provisioning_next_url}
+  on_provisioned:  # also fires when WiFi is externally provisioned by improv_serial
+    then:
+      - lambda: |-
+          minuet::tone::play("!provisioned");
+
+binary_sensor:
+  - id: minuet_improv_authorizer
+    platform: template
+    trigger_on_initial_state: true
+
+switch:
+  - id: !extend minuet_radio_pairing_mode
+    on_turn_on:
+      then:
+        - lambda: |-
+            // Simulate authorization button presses until pairing mode stops
+            id(minuet_improv_authorizer_poll).start_poller();
+
+interval:
+  - id: minuet_improv_authorizer_poll
+    interval: 500ms
+    then:
+      - lambda: |-
+          if (id(minuet_radio_pairing_mode).state) {
+            id(minuet_improv_authorizer).publish_state(true);
+            id(minuet_improv_authorizer).publish_state(false);
+          } else {
+            id(minuet_improv_authorizer_poll).stop_poller();
+          }

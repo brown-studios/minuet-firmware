@@ -1,0 +1,157 @@
+# MINUET LIGHT ACCESSORY PACKAGE
+#
+# Supports an addressable LED strip connected to the light accessory board.
+# Refer to the light accessory documentation for details.
+
+substitutions:
+  # Configures the attached LED strip.
+  # Defaults to the strip that ships together with the accessory.
+  minuet_light_strip: ${minuet_light_strips["btf_sk6812_rgbw_60"]}
+  # A library of alternative LED strip configurations.
+  # You can define your own configuration if your strip is different.
+  minuet_light_strips:
+    # BTF Lighting, 12 V, WS2814, RGBW, 60 LEDs per meter, 3 LEDs per pixel
+    # Remarks: Bright
+    btf_ws2814_rgbw_60:
+      num_pixels: 19
+      leds_per_meter: 60
+      leds_per_pixel: 3
+      chipset: WS2811
+      channel_colors: WRGB
+      gamma_correct: 1.4
+      color_correct: [1, 0.9, 0.9, 1]
+    # BTF Lighting, 12 V, SK6812, RGBW, 60 LEDs per meter, 1 LED per pixel
+    # Remarks: Ultra bright, unsafe to run all channels at full power (draws 1.7 A and gets too hot)
+    # so the color correction reduces the maximum intensity.
+    btf_sk6812_rgbw_60:
+      num_pixels: 57
+      leds_per_meter: 60
+      leds_per_pixel: 1
+      chipset: SK6812
+      channel_colors: GRBW
+      gamma_correct: 1.4
+      color_correct: [0.6, 0.54, 0.54, 0.6]
+  # Calculate the theoretical number of pixels that would fit around the circumference of the fan cowling to form a
+  # continuous ring given the LED strip's pixel density.  This value may be slightly larger than num_pixels when
+  # there's a gap in the ring where a pixel had to be cut off for the wiring to fit.  Useful for creating animations
+  # with rotational symmetry around the fan cowling.
+  minuet_light_ring_pixels: ${(0.308 * 3.1415 * minuet_light_strip.leds_per_meter / minuet_light_strip.leds_per_pixel) | round()}
+
+esphome:
+  includes:
+    - minuet/accessory/light.h
+  on_boot:
+    - priority: ${minuet_accessory_setup_priority}
+      then:
+        - lambda: |-
+            if (id(minuet_accessory_id).state != 2) {
+              return; // accessory not detected
+            }
+
+            minuet::accessory::install({
+              .name = "Light",
+              .handle_toggle = []() {
+                minuet::accessory::light::toggle(id(minuet_light));
+                id(minuet_tone).execute("?light_change");
+              },
+              .handle_up = []() {
+                minuet::accessory::light::change_brightness(id(minuet_light), 1);
+                id(minuet_tone).execute("?light_change");
+              },
+              .handle_down = []() {
+                minuet::accessory::light::change_brightness(id(minuet_light), -1);
+                id(minuet_tone).execute("?light_change");
+              },
+              .handle_nec_code = [](esphome::remote_base::NECData code) {
+                minuet::accessory::light::apply_nec_code(id(minuet_light), code);
+              },
+              .handle_safety_lock_update = []() {
+                if (id(minuet_light).remote_values.is_on() && !minuet::safety_lock::validate_operation(
+                    {
+                      .description = "check whether to keep light on",
+                      .stage = minuet::safety_lock::Stage::ONGOING,
+                    })) {
+                  minuet::accessory::light::turn_off(id(minuet_light));
+                }
+              },
+            });
+
+# TODO: Disable components unless accessory detected
+light:
+  - id: minuet_light
+    name: "Light"
+    platform: esp32_rmt_led_strip
+    pin:
+      number: 14
+    restore_mode: ALWAYS_OFF
+    num_leds: ${minuet_light_strip.num_pixels}
+    chipset: ${minuet_light_strip.chipset}
+    channel_colors: ${minuet_light_strip.channel_colors}
+    gamma_correct: ${minuet_light_strip.gamma_correct}
+    color_correct: ${minuet_light_strip.color_correct}
+    power_supply: minuet_light_power
+    default_transition_length: 0.5s
+    effects:
+      - addressable_rainbow:
+          width: ${minuet_light_ring_pixels}
+      - addressable_twinkle:
+      - pulse:
+      - lambda:
+          name: "Fade"
+          update_interval: 20ms
+          lambda: |-
+            auto color = esphome::light::ESPHSVColor((millis() / 80) & 0xff, 255, 255).to_rgb();
+            id(minuet_light).make_call()
+                .set_transition_length(0)
+                .set_color_brightness(1.f)
+                .set_color_mode(esphome::light::ColorMode::RGB_WHITE)
+                .set_rgbw(color.r / 255.f, color.g / 255.f, color.b / 255.f, 0.f)
+                .set_publish(false)
+                .perform();
+      - lambda:
+          name: "Random"
+          update_interval: 7s
+          lambda: |-
+            auto color = esphome::light::ESPHSVColor(random_uint32() & 0xff, 255, 255).to_rgb();
+            id(minuet_light).make_call()
+                .set_transition_length(1000)
+                .set_color_brightness(1.f)
+                .set_color_mode(esphome::light::ColorMode::RGB_WHITE)
+                .set_rgbw(color.r / 255.f, color.g / 255.f, color.b / 255.f, 0.f)
+                .set_publish(false)
+                .perform();
+    on_state:
+      then:
+        lambda: |-
+          // SAFETY LOCK CHECK: Light accessory cannot operate while safety lock is on
+          auto& light = id(minuet_light);
+          const auto& values = light->remote_values;
+          if (values.is_on() && !minuet::safety_lock::validate_operation(
+              {
+                .description = "turn light on",
+                .stage = minuet::safety_lock::Stage::INITIATING,
+              })) {
+            minuet::accessory::light::turn_off(light);
+            return; // operation inhibited
+          }
+
+          // Some effects don't clear the white channel when changing colors which makes the
+          // effect overly bright so we clear the white channel.
+          if (values.get_white() != 0.f) {
+            std::string effect = light->get_effect_name();
+            if (effect == "Rainbow") {
+              ESP_LOGD(minuet::TAG, "Clear white channel for RGBW unaware light effect: %s", effect.c_str());
+              static_cast<AddressableLight*>(light->get_output())->all().set_white(0.f);
+            }
+          }
+
+# Power supply component turns on the PWR pin when the light is on.
+# The power_supply component automatically turns the light off before ESPHome restarts.
+power_supply:
+  - id: minuet_light_power
+    pin:
+      number: 15
+      mode: output
+      ignore_strapping_warning: true
+    enable_time: 10ms
+    keep_on_time: 1s

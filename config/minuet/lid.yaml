@@ -1,0 +1,245 @@
+# MINUET LID PACKAGE
+#
+# Drives the lid motor.  Determines end of travel by monitoring the motor current with the ADC.
+# Coordination between the fan and the lid is handled elsewhere.
+
+substitutions:
+  # The lid motor initial duty cycle for soft-start, between 0.0 and 1.0.
+  minuet_lid_motor_duty_initial: 0.2
+  # The lid motor final duty cycle, between `minuet_lid_motor_duty_initial` and 1.0.
+  minuet_lid_motor_duty_final: 1.0
+  # The lid motor duty cycle ramp duration.
+  minuet_lid_motor_duty_ramp: 0.75  # in seconds
+  # The maximum amount of time to run the lid motor (without observing a stall or a fault) before
+  # determining that a timeout has occurred and stopping the motor, in seconds.
+  # The rain shedding lid normally takes about 6 seconds to open.
+  # The low profile lid normally takes about 12 seconds to open.
+  minuet_lid_motor_timeout: 15.0  # in seconds
+  # The lid motor stall current threshold.
+  minuet_lid_motor_stall_current: 0.8  # in amps
+  # The lid motor stall duration threshold.
+  minuet_lid_motor_stall_duration: 0.2  # in seconds
+  # The lid motor poll interval.
+  minuet_lid_motor_poll_interval: 0.05  # in seconds
+  # Optional packages.
+  minuet_package_lid_diagnostics: !include lid_diagnostics.yaml
+
+esphome:
+  includes:
+    - minuet/lid.h
+  on_boot:
+    - priority: 700  # after HARDWARE components (gpio_binary_sensor and ledc_output)
+      then:
+        - lambda: |-
+            minuet::lid::motor_controller.init();
+            id(minuet_lid_publish_status).execute();
+  on_shutdown:
+    - priority: 500
+      then:
+        - lambda: |-
+            minuet::lid::motor_controller.shutdown();
+            id(minuet_lid_publish_status).execute();
+
+cover:
+  - id: minuet_lid
+    name: "Lid"
+    device_class: damper
+    platform: template
+    optimistic: false
+    assumed_state: true
+    restore_mode: NO_RESTORE
+    open_action:
+      then:
+        - lambda: |-
+            // SAFETY LOCK CHECK: Lid cannot open while safety lock is on
+            if (!minuet::safety_lock::validate_operation(
+                {
+                  .description = "open lid",
+                  .stage = minuet::safety_lock::Stage::INITIATING,
+                  .rain_sensitive = true,
+                })) {
+              return; // operation inhibited
+            }
+            auto& lid = id(minuet_lid);
+            if (lid->current_operation != COVER_OPERATION_OPENING) {
+              ESP_LOGI(minuet::TAG, "Open lid");
+              lid->current_operation = COVER_OPERATION_OPENING;
+              lid->position = COVER_OPEN;
+              lid->publish_state();
+              minuet::coordinator::coordinator.on_lid_action();
+
+              minuet::lid::motor_controller.start(/*open*/ true,
+                  ${minuet_lid_motor_duty_initial}, ${minuet_lid_motor_duty_final},
+                  ${minuet_lid_motor_duty_ramp}, ${minuet_lid_motor_timeout});
+
+              id(minuet_lid_motor_poll).start_poller();
+              id(minuet_lid_publish_status).execute();
+            }
+    close_action:
+      then:
+        - lambda: |-
+            // SAFETY LOCK CHECK NOT REQUIRED: Lid can always be closed
+            auto& lid = id(minuet_lid);
+            if (lid->current_operation != COVER_OPERATION_CLOSING) {
+              ESP_LOGI(minuet::TAG, "Close lid");
+              lid->current_operation = COVER_OPERATION_CLOSING;
+              lid->position = COVER_CLOSED;
+              lid->publish_state();
+              minuet::coordinator::coordinator.on_lid_action();
+
+              minuet::lid::motor_controller.start(/*open*/ false,
+                  ${minuet_lid_motor_duty_initial}, ${minuet_lid_motor_duty_final},
+                  ${minuet_lid_motor_duty_ramp}, ${minuet_lid_motor_timeout});
+
+              id(minuet_lid_motor_poll).start_poller();
+              id(minuet_lid_publish_status).execute();
+            }
+    stop_action:
+      then:
+        - lambda: |-
+            // SAFETY LOCK CHECK: Lid cannot stop closing while safety lock is on
+            auto& lid = id(minuet_lid);
+            if (lid->current_operation == COVER_OPERATION_CLOSING
+                && !minuet::safety_lock::validate_operation(
+                {
+                  .description = "stop lid while closing",
+                  .stage = minuet::safety_lock::Stage::INITIATING,
+                  .rain_sensitive = true,
+                })) {
+              return; // operation inhibited
+            }
+            if (lid->current_operation != COVER_OPERATION_IDLE) {
+              ESP_LOGI(minuet::TAG, "Stop lid");
+              minuet::coordinator::coordinator.on_lid_action();
+
+              minuet::lid::motor_controller.stop();
+            }
+    toggle_action:
+      then:
+        - lambda: |-
+            // Cycle through actions: open / stop / close / stop
+            auto& lid = id(minuet_lid);
+            if (lid->current_operation == COVER_OPERATION_IDLE) {
+              if (lid->position == COVER_OPEN) {
+                lid->make_call().set_command_close().perform();
+              } else {
+                lid->make_call().set_command_open().perform();
+              }
+            } else {
+              lid->make_call().set_command_stop().perform();
+            }
+
+binary_sensor:
+  - id: minuet_lid_motor_fault
+    platform: gpio
+    pin:
+      pca9554: minuet_xio
+      number: 10
+      mode: input
+      inverted: true
+    trigger_on_initial_state: true
+    use_interrupt: false
+  - id: minuet_lid_motor_stall
+    platform: analog_threshold
+    sensor_id: minuet_lid_motor_current
+    threshold: ${minuet_lid_motor_stall_current}
+    filters:
+      - delayed_on: ${minuet_lid_motor_stall_duration}s
+      # There must not be a delayed off time because we need the sensor to clear immediately when
+      # the motor stops and reverses direction.
+
+sensor:
+  - id: minuet_lid_motor_current
+    unit_of_measurement: A
+    accuracy_decimals: 3
+    platform: adc
+    pin:
+      number: 4
+      ignore_strapping_warning: true
+    attenuation: 12db
+    samples: 4
+    sampling_mode: max
+    update_interval: never
+    filters:
+      # Scale V_propi by 1 A / 3.3 V given Vref = 3.3 V and R_propi = 3.3 Kohm
+      - multiply: 0.303
+
+output:
+  - id: minuet_lid_motor_sleep
+    platform: gpio
+    pin:
+      pca9554: minuet_xio
+      number: 11
+      mode: output
+      inverted: true
+  - id: minuet_lid_motor_in1
+    platform: ledc
+    pin:
+      number: 21
+      mode: output
+      inverted: false
+    channel: 2
+    frequency: 25000 Hz
+  - id: minuet_lid_motor_in2
+    platform: ledc
+    pin:
+      number: 20
+      mode: output
+      inverted: false
+    channel: 3
+    frequency: 25000 Hz
+
+text_sensor:
+  - id: minuet_lid_status
+    name: "Lid status"
+    icon: mdi:alert
+    entity_category: diagnostic
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    platform: template
+    update_interval: never
+
+script:
+  - id: minuet_lid_publish_status
+    then:
+      - lambda: |-
+          const char* status = minuet::lid::motor_controller.format_status();
+          if (id(minuet_lid_status).state != status) {
+            id(minuet_lid_status).publish_state(status);
+          }
+
+interval:
+  - id: minuet_lid_motor_poll
+    interval: ${minuet_lid_motor_poll_interval}s
+    then:
+      lambda: |-
+        id(minuet_lid_motor_current).update(); // update stall state before poll
+        if (!minuet::lid::motor_controller.poll()) {
+          id(minuet_lid_motor_poll).stop_poller();
+
+          // Flush out the diagnostics filter.
+          id(minuet_lid_motor_current).publish_state(NAN);
+          id(minuet_lid_motor_current).publish_state(0);
+          id(minuet_lid_motor_current).publish_state(NAN);
+
+          auto& lid = id(minuet_lid);
+          lid->current_operation = COVER_OPERATION_IDLE;
+          lid->publish_state();
+          id(minuet_lid_publish_status).execute();
+
+          switch (minuet::lid::motor_controller.status()) {
+            case minuet::lid::MotorStatus::STALL:
+              minuet::coordinator::coordinator.confirm_lid_position();
+              break;
+            case minuet::lid::MotorStatus::TIMEOUT:
+              minuet::tone::play("!lid_timeout");
+              break;
+            case minuet::lid::MotorStatus::FAULT:
+              minuet::tone::play("!lid_fault");
+              break;
+            default:
+              break;
+          }
+        }
+
+packages:
+  - ${minuet_package_lid_diagnostics if minuet_feature_diagnostics else {}}

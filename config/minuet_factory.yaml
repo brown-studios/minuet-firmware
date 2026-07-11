@@ -1,0 +1,30 @@
+# MINUET FACTORY CONFIGURATION
+#
+# This configuration is flashed to devices at the factory.
+#
+# Includes affordances for provisioning device credentials using Improv and to satisfy the requirements
+# of the Made for ESPHome program.
+#
+# The factory configuration omits the `ap` and `captive_portal` components to save power
+# and to avoid hardcoding a default password.  The user can choose to add these components
+# if desired when adopting the device and flashing new firmware.
+#
+# Refer to https://esphome.io/guides/made_for_esphome/ and https://esphome.io/guides/creators/
+
+substitutions:
+  # Enable features (see minuet/main.yaml).
+  minuet_feature_api: true
+  minuet_feature_diagnostics: true
+  minuet_feature_provisioning: true
+  minuet_feature_radio_bluetooth: true
+  minuet_feature_radio_wifi: true
+
+# Dashboard import helps the user adopt the device into Home Assistant.
+# Unfortunately ESPHome's dashboard import feature does not currently (as of 2026/8) fetch all
+# of the files needed to build the firmware (missing C++ headers) so it doesn't work quite yet.
+dashboard_import:
+  package_import_url: "github://brown-studios/minuet-firmware/config/minuet_template.yaml@main"
+  import_full_config: true
+
+packages:
+  - !include minuet/main.yaml

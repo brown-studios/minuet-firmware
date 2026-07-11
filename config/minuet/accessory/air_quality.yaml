@@ -1,0 +1,130 @@
+# MINUET AIR QUALITY ACCESSORY PACKAGE
+#
+# Reads sensors from the air quality sensor accessory.
+# Refer to the air quality accessory documentation for details.
+
+substitutions:
+  # The PMSA003I I2C address.
+  minuet_air_quality_pmsa003i_i2c_address: 0x12
+  # Offer sensors for automatic control.
+  minuet_auto_sensors:
+    id: !extend registry
+    aqi:
+      - name: PMSA003I
+        sensor_id: minuet_air_quality_aqi
+        priority: 500
+    caqi:
+      - name: PMSA003I
+        sensor_id: minuet_air_quality_caqi
+        priority: 500
+
+esphome:
+  on_boot:
+    - priority: ${minuet_accessory_setup_priority}
+      then:
+        - lambda: |-
+            // Detect PMSA003I by reading the first few bytes of a packet
+            uint8_t write_buf[1] = { 0x00 };
+            uint8_t read_buf[2] = { 0x00, 0x00 };
+            if (id(minuet_i2c).write_readv(${minuet_air_quality_pmsa003i_i2c_address},
+                write_buf, sizeof(write_buf), read_buf, sizeof(read_buf)) != esphome::i2c::NO_ERROR ||
+                read_buf[0] != 0x42 || read_buf[1] != 0x4d) {
+              return; // accessory not detected
+            }
+
+            minuet::accessory::install({
+              .name = "Air quality",
+            });
+
+# TODO: Disable components unless accessory detected
+sensor:
+  - id: minuet_air_quality_pmsa003i
+    platform: pmsa003i
+    i2c_id: minuet_i2c
+    address: ${minuet_air_quality_pmsa003i_i2c_address}
+    pm_1_0:
+      id: minuet_air_quality_pm_1_0
+      name: "Air PM 1.0 from PMSA003I"
+      accuracy_decimals: 1
+      filters:
+        - sliding_window_moving_average:
+            window_size: 20
+            send_every: 5
+    pm_2_5:
+      id: minuet_air_quality_pm_2_5
+      name: "Air PM 2.5 from PMSA003I"
+      accuracy_decimals: 1
+      filters:
+        - sliding_window_moving_average:
+            window_size: 20
+            send_every: 5
+    pm_10_0:
+      id: minuet_air_quality_pm_10_0
+      name: "Air PM 10.0 from PMSA003I"
+      accuracy_decimals: 1
+      filters:
+        - sliding_window_moving_average:
+            window_size: 20
+            send_every: 5
+    # pmc_0_3:
+    #   id: minuet_air_quality_pmc_0_3
+    #   name: "Air PMC >0.3µm from PMSA003I"
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    # pmc_0_5:
+    #   id: minuet_air_quality_pmc_0_5
+    #   name: "Air PMC >0.5µm from PMSA003I"
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    # pmc_1_0:
+    #   id: minuet_air_quality_pmc_1_0
+    #   name: "Air PMC >1µm from PMSA003I"
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    # pmc_2_5:
+    #   id: minuet_air_quality_pmc_2_5
+    #   name: "Air PMC >2.5µm from PMSA003I"
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    # pmc_5_0:
+    #   id: minuet_air_quality_pmc_5_0
+    #   name: "Air PMC >5µm from PMSA003I"
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    # pmc_10_0:
+    #   id: minuet_air_quality_pmc_10_0
+    #   name: "Air PMC >10µm from PMSA003I"
+    #   accuracy_decimals: 1
+    #   filters:
+    #     - sliding_window_moving_average:
+    #         window_size: 20
+    #         send_every: 20
+    update_interval: 3s  # PMSA003I internally updates every 2.3 s
+  - platform: aqi
+    id: minuet_air_quality_aqi
+    name: "Air quality (AQI) from PMSA003I"
+    pm_2_5: minuet_air_quality_pm_2_5
+    pm_10_0: minuet_air_quality_pm_10_0
+    calculation_type: AQI
+    extended_range: true
+  - platform: aqi
+    id: minuet_air_quality_caqi
+    name: "Air quality (CAQI) from PMSA003I"
+    pm_2_5: minuet_air_quality_pm_2_5
+    pm_10_0: minuet_air_quality_pm_10_0
+    calculation_type: CAQI

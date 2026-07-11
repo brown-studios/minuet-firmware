@@ -1,0 +1,6 @@
+# MINUET MINIMAL CONFIGURATION
+#
+# This is a minimal configuration with all optional features disabled.
+
+packages:
+  - !include minuet/main.yaml

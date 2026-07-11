@@ -1,0 +1,21 @@
+# MINUET DIAGNOSTICS PACKAGE
+#
+# Allows diagnostics features to be collectively enabled or disabled.
+# Sending diagnostics keeps the radio active more often so they should only be enabled when needed.
+#
+# Unlike debug features, diagnostics are included by default in the factory firmware.
+
+# Uses `defaults` instead of `substitutions` in optional package to prevent undefined variable
+# warning in minimal configuration.
+defaults:
+  # Set to true to enable diagnostics at boot when debug features are included.
+  minuet_diagnostics_always_on_at_boot: ${minuet_feature_debug}
+
+switch:
+  - id: minuet_diagnostics
+    name: "Diagnostics"
+    icon: mdi:magnify
+    platform: template
+    restore_mode: ${"ALWAYS_ON" if minuet_diagnostics_always_on_at_boot else "RESTORE_DEFAULT_OFF"}
+    optimistic: true
+    entity_category: diagnostic

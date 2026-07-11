@@ -1,0 +1,111 @@
+# MINUET FAN DIAGNOSTICS PACKAGE
+#
+# Provides optional diagnostic information about the fan's operation.
+
+# Uses `defaults` instead of `substitutions` in optional package to prevent undefined variable
+# warning in minimal configuration.
+defaults:
+  # Time between diagnostics reports.
+  minuet_fan_diagnostics_report_interval: 2  # in seconds
+
+switch:
+  - id: !extend minuet_diagnostics
+    on_turn_on:
+      then:
+        - lambda: |-
+            id(minuet_fan_diagnostics_poll).start_poller();
+
+sensor:
+  - id: minuet_fan_speed
+    name: "Fan speed"
+    icon: mdi:fan
+    state_class: measurement
+    entity_category: diagnostic
+    unit_of_measurement: rpm
+    accuracy_decimals: 0
+    platform: template
+    update_interval: never
+    filters:
+      - delta: 5
+      - round_to_multiple_of: 10
+    lambda: 'return minuet::fan::motor_controller.get_tachometer_rpm();'
+  - id: minuet_fan_bus_voltage
+    name: "Fan bus voltage"
+    state_class: measurement
+    device_class: voltage
+    entity_category: diagnostic
+    unit_of_measurement: V
+    accuracy_decimals: 2
+    platform: template
+    update_interval: never
+    filters:
+      - delta: 0.005
+      - round_to_multiple_of: 0.01
+    lambda: 'return minuet::fan::motor_controller.get_vm_voltage();'
+  - id: minuet_fan_bus_current
+    name: "Fan bus current"
+    state_class: measurement
+    device_class: current
+    entity_category: diagnostic
+    unit_of_measurement: A
+    accuracy_decimals: 2
+    platform: template
+    update_interval: never
+    filters:
+      - delta: 0.005
+      - round_to_multiple_of: 0.01
+    lambda: 'return minuet::fan::motor_controller.get_bus_current();'
+  - id: minuet_fan_bus_power
+    name: "Fan bus power"
+    state_class: measurement
+    device_class: power
+    entity_category: diagnostic
+    unit_of_measurement: W
+    accuracy_decimals: 1
+    platform: template
+    update_interval: never
+    filters:
+      - delta: 0.05
+      - round_to_multiple_of: 0.1
+    lambda: 'return id(minuet_fan_bus_voltage).get_raw_state() * id(minuet_fan_bus_current).get_raw_state();'
+  - id: minuet_fan_motor_phase_peak_current
+    name: "Fan motor phase peak current"
+    state_class: measurement
+    device_class: current
+    entity_category: diagnostic
+    unit_of_measurement: A
+    accuracy_decimals: 2
+    platform: template
+    update_interval: never
+    filters:
+      - delta: 0.005
+      - round_to_multiple_of: 0.01
+    lambda: 'return minuet::fan::motor_controller.get_motor_phase_peak_current();'
+
+interval:
+  - id: minuet_fan_diagnostics_poll
+    interval: ${minuet_fan_diagnostics_report_interval}s
+    then:
+      lambda: |-
+        if (!id(minuet_diagnostics).state) {
+          id(minuet_fan_diagnostics_poll).stop_poller();
+          return;
+        }
+
+        static bool quiescent{};
+        if (minuet::fan::motor_controller.is_awake()) {
+          quiescent = false; // not sleeping anymore
+        } else if (quiescent) {
+          return; // nothing more to do
+        } else {
+          quiescent = true; // collect one sample of the quiescent state
+        }
+
+        id(minuet_fan_speed).update();
+        id(minuet_fan_bus_voltage).update();
+        id(minuet_fan_bus_current).update();
+        id(minuet_fan_bus_power).update(); // must be updated after voltage and current
+        id(minuet_fan_motor_phase_peak_current).update();
+        ESP_LOGD(minuet::TAG, "Fan diagnostics: speed %.0f rpm, bus %.2f V / %.2f A / %.1f W, motor phase peak %.2f A",
+            id(minuet_fan_speed).state, id(minuet_fan_bus_voltage).state, id(minuet_fan_bus_current).state,
+            id(minuet_fan_bus_power).state, id(minuet_fan_motor_phase_peak_current).state);

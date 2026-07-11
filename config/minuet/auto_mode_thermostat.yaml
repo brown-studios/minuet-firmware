@@ -1,0 +1,189 @@
+# MINUET AUTO MODE THERMOSTAT PACKAGE
+
+substitutions:
+  # The target temperature unit to emulate.  ESPHome always uses Celsius internally.
+  # - Use "°F" for optimal round-trip compatibility with the OEM keypad and infrared remote.
+  # - Use "°C" for optimal round-trip compatibility with Home Assistant.
+  # Refer to the Temperature Units section in README.md for details.
+  minuet_auto_thermostat_target_temperature_emulated_unit: "°F"  # either "°F" or "°C"
+  minuet_auto_thermostat_target_temperature_default: ${((78.0) - 32) / 1.8 if minuet_auto_thermostat_target_temperature_emulated_unit == "°F" else 26.0}
+  minuet_auto_thermostat_target_temperature_step: ${(1.0) / 1.8 if minuet_auto_thermostat_target_temperature_emulated_unit == "°F" else 0.5}
+
+  # The target temperature range has been widened beyond the OEM keypad and infrared remote.
+  # Refer to the Temperature Units section in README.md for details.
+  minuet_auto_thermostat_target_temperature_min: -5  # in °C
+  minuet_auto_thermostat_target_temperature_max: 50  # in °C
+
+  # Provides a hint to the UI about how many digits of precision to display.
+  minuet_auto_thermostat_target_temperature_visual_step: 0.5  # in °C
+  minuet_auto_thermostat_current_temperature_visual_step: 0.1  # in °C
+
+  minuet_auto_thermostat_fan_mode_default: "AUTO"
+
+  minuet_auto_thermostat_fan_speed_range_max: 20.0  # in °C
+  minuet_auto_thermostat_fan_speed_range_step: 0.5  # in °C
+  minuet_auto_thermostat_fan_speed_range_default: 5.0  # in °C
+
+  minuet_auto_thermostat_upper_hysteresis_max: 5.0  # in °C
+  minuet_auto_thermostat_upper_hysteresis_step: 0.5  # in °C
+  minuet_auto_thermostat_upper_hysteresis_default: 1.0  # in °C
+
+  minuet_auto_thermostat_lower_hysteresis_max: 5.0  # in °C
+  minuet_auto_thermostat_lower_hysteresis_step: 0.5  # in °C
+  minuet_auto_thermostat_lower_hysteresis_default: 1.0  # in °C
+
+  minuet_auto_thermostat_minimum_runtime_max: 60  # in minutes
+  minuet_auto_thermostat_minimum_runtime_step: 1  # in minutes
+  minuet_auto_thermostat_minimum_runtime_default: 1  # in minutes, 0 is no minimum
+
+  minuet_auto_thermostat_maximum_runtime_max: 1440  # in minutes
+  minuet_auto_thermostat_maximum_runtime_step: 5  # in minutes
+  minuet_auto_thermostat_maximum_runtime_default: 0  # in minutes, 0 is no maximum
+
+external_components:
+  # TODO: Remove once template climate component lands upstream. Using draft pull-request for now.
+  - source: github://j9brown/esphome@template-climate
+    components: [template]
+    refresh: 1min
+
+esphome:
+  build_flags:
+    - "-DMINUET_AUTO_THERMOSTAT_TARGET_TEMPERATURE_DEFAULT=${minuet_auto_thermostat_target_temperature_default}"
+    - "-DMINUET_AUTO_THERMOSTAT_TARGET_TEMPERATURE_STEP=${minuet_auto_thermostat_target_temperature_step}"
+
+climate:
+  - id: minuet_auto_thermostat
+    name: "Auto thermostat"
+    icon: mdi:thermostat-auto
+    platform: template
+    supports_action: true
+    supports_current_temperature: ${minuet_auto_sensors.temperature|length != 0}
+    supports_current_humidity: ${minuet_auto_sensors.humidity|length != 0}
+    supported_modes:
+      - "OFF"
+      - FAN_ONLY
+      - AUTO
+    supported_fan_modes:
+      - "OFF"
+      - AUTO
+      - QUIET
+      - LOW
+      - MEDIUM
+      - HIGH
+    custom_fan_modes:
+      - Minimum
+    supported_presets:
+      - HOME
+      - SLEEP
+      - AWAY
+      - ECO
+    optimistic: true  # TODO implement control
+    restore_mode: RESTORE
+    initial_state:
+      mode: "OFF"
+      target_temperature: ${minuet_auto_thermostat_target_temperature_default}
+      fan_mode: ${minuet_auto_thermostat_fan_mode_default}
+    visual:
+      min_temperature: ${minuet_auto_thermostat_target_temperature_min}
+      max_temperature: ${minuet_auto_thermostat_target_temperature_max}
+      temperature_step:
+        target_temperature: ${minuet_auto_thermostat_target_temperature_visual_step}
+        current_temperature: ${minuet_auto_thermostat_current_temperature_visual_step}
+    on_control:
+      then:
+        lambda: |-
+          if (x.get_preset().has_value()) {
+            minuet::auto_mode::apply_preset(x.get_preset().value());
+          }
+    on_state:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+          minuet::coordinator::coordinator.on_auto_state(minuet::auto_mode::get_auto_mode());
+
+number:
+  - id: minuet_auto_thermostat_fan_speed_range
+    name: "Auto thermostat fan speed range"
+    platform: template
+    unit_of_measurement: '°C'
+    device_class: temperature_delta
+    entity_category: config
+    min_value: 0.0
+    max_value: ${minuet_auto_thermostat_fan_speed_range_max}
+    step: ${minuet_auto_thermostat_fan_speed_range_step}
+    initial_value: ${minuet_auto_thermostat_fan_speed_range_default}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_thermostat_upper_hysteresis
+    name: "Auto thermostat upper hysteresis"
+    platform: template
+    unit_of_measurement: '°C'
+    device_class: temperature_delta
+    entity_category: config
+    min_value: 0.0
+    max_value: ${minuet_auto_thermostat_upper_hysteresis_max}
+    step: ${minuet_auto_thermostat_upper_hysteresis_step}
+    initial_value: ${minuet_auto_thermostat_upper_hysteresis_default}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_thermostat_lower_hysteresis
+    name: "Auto thermostat lower hysteresis"
+    platform: template
+    unit_of_measurement: '°C'
+    device_class: temperature_delta
+    entity_category: config
+    min_value: 0
+    max_value: ${minuet_auto_thermostat_lower_hysteresis_max}
+    step: ${minuet_auto_thermostat_lower_hysteresis_step}
+    initial_value: ${minuet_auto_thermostat_lower_hysteresis_default}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_thermostat_minimum_runtime
+    name: "Auto thermostat minimum runtime"
+    platform: template
+    unit_of_measurement: 'min'
+    device_class: duration
+    entity_category: config
+    min_value: 0
+    max_value: ${minuet_auto_thermostat_minimum_runtime_max}
+    step: ${minuet_auto_thermostat_minimum_runtime_step}
+    initial_value: ${minuet_auto_thermostat_minimum_runtime_default}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_thermostat_maximum_runtime
+    name: "Auto thermostat maximum runtime"
+    platform: template
+    unit_of_measurement: 'min'
+    device_class: duration
+    entity_category: config
+    min_value: 0
+    max_value: ${minuet_auto_thermostat_maximum_runtime_max}
+    step: ${minuet_auto_thermostat_maximum_runtime_step}
+    initial_value: ${minuet_auto_thermostat_maximum_runtime_default}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();

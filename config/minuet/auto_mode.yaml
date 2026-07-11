@@ -1,0 +1,149 @@
+# MINUET AUTO MODE PACKAGE
+#
+# Implements automatic control.
+
+substitutions:
+  # Fan mode speed settings.
+  # We offer a reduced set of fan speeds to simplify the user interface.
+  minuet_auto_fan_mode_minimum_speed: 1
+  minuet_auto_fan_mode_low_speed: 3
+  minuet_auto_fan_mode_medium_speed: 7
+  minuet_auto_fan_mode_high_speed: 10
+  minuet_auto_fan_mode_auto_max_speed: ${minuet_auto_fan_mode_high_speed}
+  minuet_auto_fan_mode_auto_nominal_speed: ${minuet_auto_fan_mode_low_speed}
+  minuet_auto_fan_mode_auto_min_speed: ${minuet_auto_fan_mode_minimum_speed}
+  minuet_auto_fan_mode_quiet_max_speed: ${minuet_auto_fan_mode_medium_speed}
+  minuet_auto_fan_mode_quiet_nominal_speed: ${minuet_auto_fan_mode_low_speed}
+  minuet_auto_fan_mode_quiet_min_speed: ${minuet_auto_fan_mode_minimum_speed}
+
+  # Registry of sensors used for automatic control.
+  # Accessories can extend these lists.
+  minuet_auto_sensors:
+    id: registry
+    temperature:
+      - name: Thermistor
+        sensor_id: minuet_thermistor_temperature
+        priority: 1000
+    humidity: []
+    co2: []
+    aqi: []
+
+esphome:
+  includes:
+    - minuet/auto_mode.h
+    - minuet/auto_mode_controllers.h
+    - minuet/auto_mode_sensors.h
+
+select:
+  - id: minuet_auto_fan_direction
+    name: "Auto fan direction"
+    platform: template
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    options:
+      - Auto
+      - Air out
+      - Air in
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+  - id: minuet_auto_lid_position
+    name: "Auto lid position"
+    platform: template
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    options:
+      - Auto
+      - Open
+      - Closed
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+
+packages:
+  - !include auto_mode_thermostat.yaml
+  - !include auto_mode_humidistat.yaml
+  - !include auto_mode_co2_monitor.yaml
+  - !include auto_mode_air_quality_monitor.yaml
+  - !include
+    file: auto_mode_preset.yaml
+    vars:
+      minuet_auto_preset_id: home
+      minuet_auto_preset_name: "Home"
+      minuet_auto_preset_fan_direction: "Auto"
+      minuet_auto_preset_lid_position: "Open"
+      minuet_auto_preset_thermostat_enabled: true
+      minuet_auto_preset_thermostat_setpoint: 25.0  # in °C
+      minuet_auto_preset_thermostat_fan_mode: "Auto"
+      minuet_auto_preset_humidistat_enabled: true
+      minuet_auto_preset_co2_monitor_enabled: true
+  - !include
+    file: auto_mode_preset.yaml
+    vars:
+      minuet_auto_preset_id: sleep
+      minuet_auto_preset_name: "Sleep"
+      minuet_auto_preset_fan_direction: "Auto"
+      minuet_auto_preset_lid_position: "Open"
+      minuet_auto_preset_thermostat_enabled: true
+      minuet_auto_preset_thermostat_setpoint: 25.0  # in °C
+      minuet_auto_preset_thermostat_fan_mode: "Quiet"
+      minuet_auto_preset_humidistat_enabled: true
+      minuet_auto_preset_co2_monitor_enabled: true
+  - !include
+    file: auto_mode_preset.yaml
+    vars:
+      minuet_auto_preset_id: away
+      minuet_auto_preset_name: "Away"
+      minuet_auto_preset_fan_direction: "Auto"
+      minuet_auto_preset_lid_position: "Auto"
+      minuet_auto_preset_thermostat_enabled: true
+      minuet_auto_preset_thermostat_setpoint: 30.0  # in °C
+      minuet_auto_preset_thermostat_fan_mode: "Low"
+      minuet_auto_preset_humidistat_enabled: false
+      minuet_auto_preset_co2_monitor_enabled: false
+  - !include
+    file: auto_mode_preset.yaml
+    vars:
+      minuet_auto_preset_id: eco
+      minuet_auto_preset_name: "Eco"
+      minuet_auto_preset_fan_direction: "Auto"
+      minuet_auto_preset_lid_position: "Auto"
+      minuet_auto_preset_thermostat_enabled: true
+      minuet_auto_preset_thermostat_setpoint: 35.0  # in °C
+      minuet_auto_preset_thermostat_fan_mode: "Off"
+      minuet_auto_preset_humidistat_enabled: false
+      minuet_auto_preset_co2_monitor_enabled: false
+  - !include
+    file: auto_mode_sensor.yaml
+    vars:
+      minuet_auto_sensor_id: temperature
+      minuet_auto_sensor_name: "temperature"
+      minuet_auto_sensors: ${minuet_auto_sensors.temperature}
+  - !include
+    file: auto_mode_sensor.yaml
+    vars:
+      minuet_auto_sensor_id: humidity
+      minuet_auto_sensor_name: "humidity"
+      minuet_auto_sensors: ${minuet_auto_sensors.humidity}
+  - !include
+    file: auto_mode_sensor.yaml
+    vars:
+      minuet_auto_sensor_id: co2
+      minuet_auto_sensor_name: "CO₂"
+      minuet_auto_sensors: ${minuet_auto_sensors.co2}
+  - !include
+    file: auto_mode_sensor.yaml
+    vars:
+      minuet_auto_sensor_id: aqi
+      minuet_auto_sensor_name: "AQI"
+      minuet_auto_sensors: ${minuet_auto_sensors.aqi}
+  - !include
+    file: auto_mode_sensor.yaml
+    vars:
+      minuet_auto_sensor_id: caqi
+      minuet_auto_sensor_name: "CAQI"
+      minuet_auto_sensors: ${minuet_auto_sensors.caqi}

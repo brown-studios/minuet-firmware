@@ -1,0 +1,53 @@
+# MINUET RAIN SENSOR DIAGNOSTICS PACKAGE
+#
+# Provides diagnostics about the rain sensor.
+
+# Uses `defaults` instead of `substitutions` in optional package to prevent undefined variable
+# warning in minimal configuration.
+defaults:
+  # Time between diagnostics reports.
+  minuet_rain_sensor_diagnostics_report_interval: 5  # in seconds
+  # When true, logs diagnostics without passing through the filters for faster updates.
+  minuet_rain_sensor_diagnostics_log_unfiltered: false
+
+switch:
+  - id: !extend minuet_diagnostics
+    on_turn_on:
+      then:
+        - lambda: |-
+            id(minuet_rain_sensor_resistance_filtered).update();
+
+sensor:
+  - id: minuet_rain_sensor_resistance_filtered
+    name: "Rain sensor resistance"
+    icon: mdi:weather-rainy
+    state_class: measurement
+    device_class: current
+    entity_category: diagnostic
+    unit_of_measurement: kΩ
+    accuracy_decimals: 0
+    platform: template
+    update_interval: never
+    filters:
+      - lambda: |-
+          static minuet::ThrottleFilterWithCriterion<minuet::MinCriterion> filter{};
+          return filter(x, ${(minuet_rain_sensor_diagnostics_report_interval * 1000)|round});
+      - delta: 0.5
+      - round: 0
+    lambda: 'return id(minuet_rain_sensor_resistance).state * 0.001f;'
+    on_value:
+      then:
+        lambda: |-
+          if (${"true" if not minuet_rain_sensor_diagnostics_log_unfiltered else "false"}) {
+            ESP_LOGD(minuet::TAG, "Rain sensor resistance: %.0f kΩ", x);
+          }
+  - id: !extend minuet_rain_sensor_resistance
+    on_value:
+      then:
+        lambda: |-
+          if (id(minuet_diagnostics).state) {
+            if (${"true" if minuet_rain_sensor_diagnostics_log_unfiltered else "false"}) {
+              ESP_LOGD(minuet::TAG, "Rain sensor resistance: %.0f kΩ", x * 0.001f);
+            }
+            id(minuet_rain_sensor_resistance_filtered).update();
+          }

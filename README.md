@@ -6,9 +6,19 @@ This repository contains the Minuet firmware configuation based on ESPHome.  You
 
 *Refer to the [Minuet main repository](https://github.com/brown-studios/minuet) for documentation and hardware design files.*
 
-## ESPHome configuration YAML
+## How to modify the firmware
 
-[ESPHome](https://esphome.io/) is an open-source firmware framework.
+The Minuet firmware uses [ESPHome](https://esphome.io/), an open-source framework for building smart devices.  This guide assumes that you will be using ESPHome and that you are somewhat familiar with it already or are willing to learn.
+
+### Caveat
+
+Minuet firmware is a relatively complex application that uses advanced features of the framework including packages, custom components, and a fair amount of C++.  This guide is meant to get you started but it can't cover all possible challenges you might encounter along the way even if you are already familiar with ESPHome.
+
+Because Minuet has custom components, it relies on implementation details of ESPHome that generally are not considered part of ESPHome's stable API boundary and they might break when a new version of ESPHome is released.
+
+We recommend waiting for official Minuet release announcements before updating.  Don't try to update the Minuet firmware immediately after each new version of ESPHome because it might not compile on that release and will take some time to fix.
+
+### Files
 
 The Minuet firmware is built from ESPHome configuration YAML files.
 
@@ -16,15 +26,21 @@ The top-level configuration file is [minuet.yaml](./minuet.yaml).  It configures
 
 The [minuet](./minuet) directory contains several more configuration YAML files and some C++ code that implements the core of the Minuet firmware.  If possible, please avoid modifying the files in the `minuet` directory because that will make it more difficult for you to upgrade to newer firmware versions.
 
-### How to modify the firmware
+Each YAML file is subdivided into [packages](https://esphome.io/components/packages/) of components related to a particular subsystem for ease of maintenance.  If you're adding a new subsystem, then you should create a new package for it to keep the components tidy.  Some packages include C++ *(.h)* header files for lower level implementation details.
 
-The Minuet firmware uses [ESPHome](https://esphome.io/).  This guide assumes that you will be using ESPHome and that you are somewhat familiar with it already or are willing to learn.
+### Identifiers
+
+To prevent conflicts with end-user firmware customization, all Minuet component identifiers in YAML have the `minuet_` prefix.
+
+Similarly, Minuet C++ declarations reside in the `minuet` namespace and preprocessor macros have the `MINUET_` prefix.
+
+### Getting started with the tools
 
 To get started, you will need to install the ESPHome tools either in [Home Assistant](https://esphome.io/guides/getting_started_hassio) or on the [command-line](https://esphome.io/guides/getting_started_command_line).  You may also find the [Samba share](https://github.com/home-assistant/addons/blob/master/samba/DOCS.md) and [File Editor](https://github.com/home-assistant/addons/blob/master/configurator/DOCS.md) Home Assistant add-ons helpful for transferring and editing files.
 
 - Familiarize yourself with the [ESPHome](https://esphome.io/) tools that you will be using to build the firmware.
 - Download the most recent contents of this repository.
-- Make a copy of `minuet.yaml` with a name of your choice, such as `my_minuet.yaml`.  Or [use `minuet.yaml` as a package](#development-configuration-using-minuetyaml-as-a-package).
+- Make a copy of `minuet.yaml` with a name of your choice, such as `my_minuet.yaml`.
 - Ensure that the `minuet` directory is next to `my_minuet.yaml`.  If you are using the ESPHome Builder add-on for Home Assistant, copy the `minuet` directory into the `/homeassistant/esphome` directory next to `my_minuet.yaml`.
 - Compile the unmodified firmware to confirm that your development environment works correctly before you start making changes.
 - Edit `my_minuet.yaml` to your heart's content.
@@ -35,22 +51,19 @@ To get started, you will need to install the ESPHome tools either in [Home Assis
 > [!NOTE]
 > The device must be powered by 12 V DC nominal supply (100 mA minimum recommended) for programming; it is not powered from USB.  If the ESPHome tools are having trouble connecting to the device to flash the firmware over USB, confirm the serial port path then reset into the bootloader and try again.  To reset into the bootloader, press and hold the `BOOT` button, tap `RESET`, then release `BOOT`.
 
-> [!TIP]
-> We recommend compiling your WiFi SSID and password into the firmware during development (instead of relying on the captive portal WiFi setup method) to ensure that your device can still connect to your WiFi network after a factory reset of the non-volatile storage.  Use over-the-air software updates to avoid removing the Minuet circuit board from your fan just to access the USB port for programming.
+### Advice
 
-### Packages
+We recommend that you compile your WiFi network credentials, API encryption key, and OTA password secrets directly into your custom firmware so they remain durable even across a factory reset.  You can also configure a fallback access point and captive portal for recovery.  Or you can completely disable the radios if you don't need connectivity!
 
-The YAML configuration is subdivided into [packages](https://esphome.io/components/packages/) of components for ease of maintenance.  Each package declares a group of components related to a particular subsystem such as the fan motor driver, keypad, thermostat, or an accessory.  If you're adding a new subsystem, then you should create a new package for it to keep the components tidy.
-
-Some files contain collections of packages when one package just isn't enough.
+Use over-the-air software updates to avoid removing the Minuet circuit board from your fan just to access the USB port for programming.
 
 ### Development configuration: using `minuet.yaml` as a package
 
-Instead of copying and editing `minuet.yaml` as a template for your configuration, you can include `minuet.yaml` unmodified as a package and layer your changes on top.  This method has some limitations but it can be useful for firmware development.
+Instead of copying and editing `minuet.yaml` as a template for your configuration, you can include `minuet.yaml` unmodified as a package and layer your changes on top.  This method has many limitations but it can be useful for firmware development.
 
 Create an empty YAML file with a name of your choice, such as `my_minuet.yaml`.
 
-Add the following contents to the file to get started.  Change this example to your liking.  Your declarations override those in the base template.  Use the [`!remove`]((https://esphome.io/components/packages/)) directive to remove sections in the base template that you don't need.
+Add the following contents to the file to get started.  Change this example to your liking.  Your declarations override those in the base template.  Use the [`!remove`]((https://esphome.io/components/packages/)) directive to remove sections that you don't need.
 
 > [!NOTE]
 > The development configuration method cannot modify substitution variables that are baked into `minuet.yaml`; you'll have to use the standard configuration method or modify `minuet.yaml` for some use-cases.
@@ -87,19 +100,16 @@ packages:
       level: DEBUG
       baud_rate: 921600
 ```
+
 </details>
 
-### Supporting hardware expansion
+### Custom accessories
 
-When you attach additional hardware to Minuet via the `QWIIC` connector or `EXPANSION` port, you will need to add components to the firmware to support the expansion.
+The Minuet firmware automatically detects and configures well-known accessories that are plugged into the `I2C` or `EXPANSION` port.  Refer to `accessory.yaml` to see how that's done.
 
-Follow the instructions in `minuet.yaml` and either uncomment and configure the package needed for your hardware or add ESPHome components to the `my_package` package as shown near the end of the file.
+If you develop custom accessories, then you will need to add components to the firmware to support the extra hardware.
 
-### Identifiers
-
-To prevent conflicts with end-user firmware customization, all Minuet component identifiers in YAML have the `minuet_` prefix.
-
-Similarly, Minuet C++ declarations reside in the `minuet` namespace and preprocessor macros have the `MINUET_` prefix.
+Follow the instructions in `minuet.yaml`.
 
 ## Contributing to the Minuet firmware
 
@@ -134,11 +144,25 @@ Minuet remains compatible with these original expectations and it expands the ra
 | Default               | 78 °F (approx. 25.56 °C) | 78 °F (approx. 25.56 °C) |
 | Keypad step           | 1 °F (approx. 0.56 °C)   | 1 °F (approx. 0.56 °C)   |
 | Remote control step   | 1 °F (approx. 0.56 °C)   | 1 °F (approx. 0.56 °C)   |
-| Visual step           | N/A                      | 0.36 °F (exactly 0.5 °C) |
+| Visual step           | N/A                      | exactly 0.5 °C           |
 
 ESPHome uses Celsius temperature units internally so the Minuet firmware converts the units as required and represents them as single-precision floating point values without rounding.
 
 It's too bad the original designers didn't choose 77 °F as the default because that would have converted to exactly 25 °C.
+
+## Development
+
+This project follows the ESPHome code style with [pre-commit](https://pre-commit.com/) hooks for linting and code formatting.
+
+To run the style checks manually on all files and fix issues, run the following command:
+
+```bash
+uv run pre-commit run --all-files
+```
+
+## Contribution guidelines
+
+We welcome thoughtful contributions to this project made without the use of generative AI / LLM tools.
 
 ## Acknowledgements
 

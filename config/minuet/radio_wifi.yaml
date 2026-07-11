@@ -1,0 +1,48 @@
+# MINUET RADIO PACKAGE FOR WIFI
+#
+# SECURITY NOTE: The outer configuration is responsible for supplying default credentials, if any.
+
+defaults:
+  # The state of the radio on power up and after a factory reset.
+  # Use one of the following values:
+  #   - `RESTORE_DEFAULT_OFF`: Restore the radio switch state from persistent storage
+  #                            and set it to OFF by default after a factory reset.
+  #   - `RESTORE_DEFAULT_ON`:  Restore the radio switch state from persistent storage
+  #                            and set it to ON by default after a factory reset.
+  #   - `ALWAYS_OFF`:          Set the radio switch state to OFF on power up.
+  #   - `ALWAYS_ON`:           Set the radio switch state to ON on power up.
+  minuet_radio_wifi_restore_mode: RESTORE_DEFAULT_OFF
+
+esphome:
+  build_flags:
+    - "-DMINUET_RADIO_WIFI"
+
+switch:
+  - id: minuet_radio_wifi
+    name: "WiFi radio"
+    icon: mdi:wifi
+    platform: template
+    optimistic: true
+    restore_mode: ${minuet_radio_wifi_restore_mode}
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    setup_priority: 240  # Between WIFI and BEFORE_CONNECTION
+    on_turn_on:
+      then:
+        - logger.log:
+            format: "WiFi radio enabled"
+            level: INFO
+        - wifi.enable:
+    on_turn_off:
+      then:
+        - logger.log:
+            format: "WiFi radio disabled"
+            level: INFO
+        - wifi.disable:
+        - switch.turn_off: minuet_radio_pairing_mode
+
+wifi:
+  id: minuet_wifi
+  enable_on_boot: false
+  power_save_mode: light
+  fast_connect: true

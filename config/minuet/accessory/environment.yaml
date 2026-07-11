@@ -1,0 +1,81 @@
+# MINUET ENVIRONMENT ACCESSORY PACKAGE
+#
+# Reads sensors from the environmental sensor accessory.
+# Refer to the environment accessory documentation for details.
+
+substitutions:
+  # The environment sensor I2C address jumper setting on the circuit board
+  # Valid values: `low` (silkscreen label `ADDR -`) or `high` (silkscreen label `ADDR +`).
+  minuet_environment_jumper_address: low
+  # The BMP580 I2C address.
+  minuet_environment_bmp580_i2c_addresses:
+    low: 0x46
+    high: 0x47
+  minuet_environment_bmp580_i2c_address: ${minuet_environment_bmp580_i2c_addresses[minuet_environment_jumper_address]}
+  # The STCC4 I2C address.
+  minuet_environment_stcc4_i2c_addresses:
+    low: 0x64
+    high: 0x65
+  minuet_environment_stcc4_i2c_address: ${minuet_environment_stcc4_i2c_addresses[minuet_environment_jumper_address]}
+  # Offer sensors for automatic control.
+  minuet_auto_sensors:
+    id: !extend registry
+    temperature:
+      - name: BMP580
+        sensor_id: minuet_environment_temperature_bmp580
+        priority: 500
+
+esphome:
+  on_boot:
+    - priority: ${minuet_accessory_setup_priority}
+      then:
+        - lambda: |-
+            // Detect BMP580 by reading its chip id register
+            uint8_t write_buf[1] = { 0x01 };
+            uint8_t read_buf[1] = { 0x00 };
+            if (id(minuet_i2c).write_readv(${minuet_environment_bmp580_i2c_address},
+                write_buf, sizeof(write_buf), read_buf, sizeof(read_buf)) != esphome::i2c::NO_ERROR ||
+                read_buf[0] != 0x50) {
+              return; // accessory not detected
+            }
+            // TODO: Detect STCC4
+
+            minuet::accessory::install({
+              .name = "Environment",
+            });
+
+# TODO: Disable components unless accessory detected
+sensor:
+  - id: minuet_environment_bmp580
+    platform: bmp581_i2c
+    i2c_id: minuet_i2c
+    address: ${minuet_environment_bmp580_i2c_address}
+    temperature:
+      id: minuet_environment_temperature_bmp580
+      name: "Temperature from BMP580"
+      oversampling: "none"
+      iir_filter: "off"
+      accuracy_decimals: 1
+      filters:
+        - sliding_window_moving_average:
+            window_size: 15
+            send_every: 5
+            send_first_at: 5
+        - delta: 0.05
+        - round_to_multiple_of: 0.1
+    pressure:
+      id: minuet_environment_pressure_bmp580
+      name: "Pressure from BMP580"
+      oversampling: "4x"
+      iir_filter: "off"
+      accuracy_decimals: 2
+      filters:
+        - sliding_window_moving_average:
+            window_size: 30
+            send_every: 10
+            send_first_at: 10
+        - delta: 0.005
+        - round_to_multiple_of: 0.01
+    update_interval: 1s
+
+# TODO: STCC4
