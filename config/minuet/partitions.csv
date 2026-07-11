@@ -1,0 +1,23 @@
+# ESP-IDF Partition Table
+# Name,    Type,  SubType,  Offset,    Size,      Flags
+otadata,   data,  ota,      0x009000,  0x002000,
+phy_init,  data,  phy,      0x00B000,  0x001000,
+nvs,       data,  nvs,      0x00C000,  0x014000,
+app0,      app,   ota_0,    0x020000,  0x1F0000,
+app1,      app,   ota_1,    0x210000,  0x1F0000,
+
+# Comparison with the default layout proposed by ESPHome 2026.10.
+#
+# - The bootloader consumes the first 0x8000.
+# - The partition table consumes the next 0x1000.
+# - The app partitions have 64 KB alignment enforced by gen_esp32part.py so there's
+#   actually a 16 KB gap between the end of phy_init and app0.
+# - The NVS partition is 448 KB which is more than ample even accounting for wear leveling
+#   and it only needs 4 KB alignment so we can move it into the gap above and shrink it
+#   to make more room for the app.  ESPHome preferences change fairly infrequently.
+#
+# otadata,   data,  ota,      ,        0x2000,
+# phy_init,  data,  phy,      ,        0x1000,
+# app0,      app,   ota_0,    ,        0x1C0000,
+# app1,      app,   ota_1,    ,        0x1C0000,
+# nvs,       data,  nvs,      ,        0x70000,

@@ -1,0 +1,134 @@
+# MINUET UPDATE PACKAGE
+#
+# Fetches and installs firmware updates only at the user's discretion.
+# Does nothing unless the user initiates an update check with the keypad or the API.
+
+substitutions:
+  # The firmware configuration: by convention, matches the YAML file from which the firmware was compiled.
+  minuet_update_config: ${"minuet_factory" if minuet_feature_debug else "minuet_factory_debug"}
+  # The update channel.
+  #  - stable:   latest stable release (recommended)
+  #  - beta:     latest beta release (experimental)
+  minuet_update_channel: stable
+  # The location of the firmware update manifest.
+  minuet_update_manifest_url: "https://minuet.brown-studios.dev/blob/firmware/${minuet_update_config}/${minuet_update_channel}.manifest.json"
+
+esphome:
+  build_flags:
+    - "-DMINUET_UPDATE"
+  on_boot:
+    - priority: 1000
+      then:
+        - lambda: |-
+            // Strangely, the update component doesn't declare an on_state trigger for use in YAML.
+            id(minuet_update).add_on_state_callback([]{
+              if (id(minuet_update_progress) == 1) {
+                id(minuet_update_progress) = 2;
+              }
+            });
+
+http_request:
+  id: minuet_http_request
+  follow_redirects: true
+  redirect_limit: 3
+  verify_ssl: true
+  timeout: 2s
+
+ota:
+  - id: minuet_ota_http_request
+    platform: http_request
+    on_state_change:
+      then:
+        - lambda: |-
+            switch (state) {
+              case esphome::ota::OTA_COMPLETED:
+                // Pump the message loop to provide audible feedback before reboot
+                ESP_LOGI(minuet::TAG, "Firmware update completed");
+                minuet::tone::play("!update_completed");
+                while (id(minuet_tone_generator).is_playing()) {
+                  id(minuet_tone_generator).loop();
+                  delay(10);
+                }
+                id(minuet_update_progress) = 5;
+                break;
+              case esphome::ota::OTA_ERROR:
+              case esphome::ota::OTA_ABORT:
+                  if (id(minuet_update_progress) == 3) {
+                    id(minuet_update_progress) = 4;
+                  }
+                break;
+              default:
+                break;
+            }
+
+update:
+  - id: minuet_update
+    platform: http_request
+    name: Firmware update
+    source: ${minuet_update_manifest_url}
+    update_interval: never
+
+globals:
+  - id: minuet_update_progress
+    type: unsigned
+    restore_value: false
+    initial_value: "0"  # 0: idle, 1: check pending, 2: check finished, 3: OTA pending, 4: OTA error, 5: OTA finished
+
+script:
+  - id: minuet_update_with_feedback
+    mode: single
+    then:
+      - lambda: |-
+          ESP_LOGI(minuet::TAG, "Checking for firmware update");
+          minuet::tone::play("!update_requested");
+      - wait_until:
+          condition:
+            lambda: |-
+              return !id(minuet_tone_generator).is_playing();
+      - lambda: |-
+          id(minuet_update_progress) = 1;
+          id(minuet_update).status_clear_error();
+          id(minuet_update).check();
+      - wait_until:
+          condition:
+            lambda: |-
+              return id(minuet_update).status_has_error() || id(minuet_update_progress) != 1;
+          timeout: 10s
+      - lambda: |-
+          auto &progress = id(minuet_update_progress);
+          if (progress == 2 && id(minuet_update).state == UPDATE_STATE_AVAILABLE) {
+            minuet::tone::play("!update_started");
+            progress = 3;
+          } else if (progress == 2 && id(minuet_update).state == UPDATE_STATE_NO_UPDATE) {
+            ESP_LOGI(minuet::TAG, "Firmware update not available");
+            minuet::tone::play("!update_not_available");
+          } else {
+            ESP_LOGI(minuet::TAG, "Error checking for firmware update");
+            minuet::tone::play("!update_error");
+          }
+      - wait_until:
+          condition:
+            lambda: |-
+              return !id(minuet_tone_generator).is_playing();
+      - lambda: |-
+          if (id(minuet_update_progress) == 3) {
+            ESP_LOGI(minuet::TAG, "Starting firmware update from version %s to %s",
+                id(minuet_update).update_info.current_version.c_str(),
+                id(minuet_update).update_info.latest_version.c_str());
+            id(minuet_update).perform(/*force*/ false);
+          }
+      - wait_until:
+          condition:
+            lambda: |-
+              return id(minuet_update_progress) != 3;
+      - lambda: |-
+          auto &progress = id(minuet_update_progress);
+          if (progress == 4) {
+            ESP_LOGI(minuet::TAG, "Firmware update failed");
+            minuet::tone::play("!update_error");
+          }
+          progress = 0;
+      - wait_until:
+          condition:
+            lambda: |-
+              return !id(minuet_tone_generator).is_playing();

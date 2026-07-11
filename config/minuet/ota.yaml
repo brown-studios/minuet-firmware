@@ -1,0 +1,9 @@
+# MINUET OTA PACKAGE
+#
+# Accepts over-the-air firmware updates from the local network.
+#
+# SECURITY NOTE: The outer configuration is responsible for supplying default credentials, if any.
+
+ota:
+  - id: minuet_ota
+    platform: esphome

@@ -1,0 +1,16 @@
+# MINUET DEBUG PACKAGE
+#
+# Reports NVS stats to the log to help understand ESPHome preferences storage consumption.
+
+esphome:
+  includes:
+    - "<nvs_flash.h>"
+  on_boot:
+    - priority: 0
+      then:
+        - lambda: |-
+            nvs_stats_t nvs_stats;
+            if (nvs_get_stats(NULL, &nvs_stats) == ESP_OK) {
+              ESP_LOGD(minuet::TAG, "NVS entries: used=%" PRIuPTR ", free=%" PRIuPTR ", avail=%" PRIuPTR ", total=%" PRIuPTR,
+                  nvs_stats.used_entries, nvs_stats.free_entries, nvs_stats.available_entries, nvs_stats.total_entries);
+            }
