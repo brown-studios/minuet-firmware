@@ -1,0 +1,87 @@
+# MINUET AUTO MODE PRESETS PACKAGE
+
+esphome:
+  includes:
+    - minuet/auto_mode/presets/presets.h
+
+select:
+  - id: minuet_auto_preset
+    platform: template
+    name: "Auto preset"
+    icon: mdi:thermostat-auto
+    optimistic: true
+    options:
+      - "Default"
+      - "Home"
+      - "Sleep"
+      - "Away"
+      - "Eco"
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          // Ignore the initial trigger on boot.
+          static bool did_initial_trigger = false;
+          if (!did_initial_trigger) {
+            did_initial_trigger = true;
+          } else {
+            minuet::auto_mode::apply_preset();
+          }
+
+packages:
+  - !include
+    file: preset_template.yaml
+    vars:
+      minuet_auto_preset_id: home
+      minuet_auto_preset_name: "Home"
+      minuet_auto_preset_fan_direction: "Auto"
+      minuet_auto_preset_lid_position: "Open"
+      minuet_auto_preset_thermostat_on: true
+      minuet_auto_preset_thermostat_target_temperature: 25.0  # in °C
+      minuet_auto_preset_thermostat_fan_mode: "Auto"
+      minuet_auto_preset_thermostat_fan_speed: 10
+      minuet_auto_preset_humidistat_on: true
+      minuet_auto_preset_co2_monitor_on: true
+      minuet_auto_preset_air_quality_monitor_on: true
+  - !include
+    file: preset_template.yaml
+    vars:
+      minuet_auto_preset_id: sleep
+      minuet_auto_preset_name: "Sleep"
+      minuet_auto_preset_fan_direction: "Auto"
+      minuet_auto_preset_lid_position: "Open"
+      minuet_auto_preset_thermostat_on: true
+      minuet_auto_preset_thermostat_target_temperature: 25.0  # in °C
+      minuet_auto_preset_thermostat_fan_mode: "Auto"
+      minuet_auto_preset_thermostat_fan_speed: 3
+      minuet_auto_preset_humidistat_on: true
+      minuet_auto_preset_co2_monitor_on: true
+      minuet_auto_preset_air_quality_monitor_on: true
+  - !include
+    file: preset_template.yaml
+    vars:
+      minuet_auto_preset_id: away
+      minuet_auto_preset_name: "Away"
+      minuet_auto_preset_fan_direction: "Auto"
+      minuet_auto_preset_lid_position: "Auto"
+      minuet_auto_preset_thermostat_on: true
+      minuet_auto_preset_thermostat_target_temperature: 30.0  # in °C
+      minuet_auto_preset_thermostat_fan_mode: "On"
+      minuet_auto_preset_thermostat_fan_speed: 3
+      minuet_auto_preset_humidistat_on: false
+      minuet_auto_preset_co2_monitor_on: false
+      minuet_auto_preset_air_quality_monitor_on: true
+  - !include
+    file: preset_template.yaml
+    vars:
+      minuet_auto_preset_id: eco
+      minuet_auto_preset_name: "Eco"
+      minuet_auto_preset_fan_direction: "Auto"
+      minuet_auto_preset_lid_position: "Auto"
+      minuet_auto_preset_thermostat_on: true
+      minuet_auto_preset_thermostat_target_temperature: 35.0  # in °C
+      minuet_auto_preset_thermostat_fan_mode: "Off"
+      minuet_auto_preset_thermostat_fan_speed: 1
+      minuet_auto_preset_humidistat_on: false
+      minuet_auto_preset_co2_monitor_on: false
+      minuet_auto_preset_air_quality_monitor_on: true

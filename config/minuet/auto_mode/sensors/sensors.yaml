@@ -1,0 +1,58 @@
+# MINUET AUTO MODE SENSORS PACKAGE
+#
+# Lets the user configure which sensors are used by the auto mode controllers in case there
+# are multiple sensors of the same type provided by accessories.
+
+substitutions:
+  # Registry of sensors used for automatic control.
+  # Accessories can extend these lists.
+  minuet_auto_sensors:
+    temperature:
+      - name: Thermistor
+        sensor_id: minuet_thermistor_temperature
+        priority: 1000
+    humidity: []
+    co2: []
+    aqi: []
+    caqi: []
+
+esphome:
+  includes:
+    - minuet/auto_mode/sensors/sensors.h
+  on_boot:
+    - priority: 501  # Before coordinator boot
+      then:
+        - lambda: |-
+            minuet::auto_mode::sensors.init();
+
+packages:
+  - !include
+    file: sensor_template.yaml
+    vars:
+      minuet_auto_sensor_id: temperature
+      minuet_auto_sensor_name: "temperature"
+      minuet_auto_sensor_options: ${minuet_auto_sensors.temperature}
+  - !include
+    file: sensor_template.yaml
+    vars:
+      minuet_auto_sensor_id: humidity
+      minuet_auto_sensor_name: "humidity"
+      minuet_auto_sensor_options: ${minuet_auto_sensors.humidity}
+  - !include
+    file: sensor_template.yaml
+    vars:
+      minuet_auto_sensor_id: co2
+      minuet_auto_sensor_name: "CO₂"
+      minuet_auto_sensor_options: ${minuet_auto_sensors.co2}
+  - !include
+    file: sensor_template.yaml
+    vars:
+      minuet_auto_sensor_id: aqi
+      minuet_auto_sensor_name: "AQI"
+      minuet_auto_sensor_options: ${minuet_auto_sensors.aqi}
+  - !include
+    file: sensor_template.yaml
+    vars:
+      minuet_auto_sensor_id: caqi
+      minuet_auto_sensor_name: "CAQI"
+      minuet_auto_sensor_options: ${minuet_auto_sensors.caqi}

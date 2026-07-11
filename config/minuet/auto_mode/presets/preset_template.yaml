@@ -1,0 +1,124 @@
+# MINUET AUTO MODE PRESET TEMPLATE PACKAGE
+#
+# This template package is included once per preset to define the entities for configuring that preset.
+#
+# TODO: Find a way to remove unnecessary preset settings when the corresponding controller is not
+# included in the firmware.  Currently they are marked internal which keeps them from being presented
+# remotely but it still generates unnecessary code.  Tried a few approaches using substitutions but
+# they fail because ESPHome expands include variables too late.
+
+packages:
+  # Common settings
+  common:
+    select:
+      - id: minuet_auto_preset_${minuet_auto_preset_id}_fan_direction
+        platform: template
+        name: "Auto preset ${minuet_auto_preset_name} fan direction"
+        icon: mdi:thermostat-cog
+        entity_category: config
+        optimistic: true
+        options:
+          - Auto
+          - Air out
+          - Air in
+        initial_option: ${minuet_auto_preset_fan_direction}
+        restore_value: true
+      - id: minuet_auto_preset_${minuet_auto_preset_id}_lid_position
+        platform: template
+        name: "Auto preset ${minuet_auto_preset_name} lid position"
+        icon: mdi:thermostat-cog
+        entity_category: config
+        optimistic: true
+        options:
+          - Auto
+          - Open
+          - Closed
+        initial_option: ${minuet_auto_preset_lid_position}
+        restore_value: true
+
+  # Thermostat settings
+  thermostat:
+    number:
+      - id: minuet_auto_preset_${minuet_auto_preset_id}_thermostat_fan_speed
+        name: "Auto preset ${minuet_auto_preset_name} thermostat fan speed"
+        icon: mdi:thermostat-cog
+        platform: template
+        entity_category: config
+        min_value: 1
+        max_value: 10
+        step: 1
+        initial_value: ${minuet_auto_preset_thermostat_fan_speed}
+        mode: box
+        optimistic: true
+        restore_value: true
+      - id: minuet_auto_preset_${minuet_auto_preset_id}_thermostat_target_temperature
+        name: "Auto preset ${minuet_auto_preset_name} thermostat target"
+        icon: mdi:thermometer-cog
+        entity_category: config
+        device_class: temperature
+        unit_of_measurement: °C
+        mode: box
+        platform: template
+        optimistic: true
+        min_value: ${minuet_auto_thermostat_min_target_temperature}
+        max_value: ${minuet_auto_thermostat_max_target_temperature}
+        step: ${minuet_auto_thermostat_step_target_temperature}
+        initial_value: ${minuet_auto_preset_thermostat_target_temperature}
+        restore_value: true
+    select:
+      - id: minuet_auto_preset_${minuet_auto_preset_id}_thermostat_fan_mode
+        platform: template
+        name: "Auto preset ${minuet_auto_preset_name} thermostat fan mode"
+        icon: mdi:thermostat-cog
+        entity_category: config
+        optimistic: true
+        options:
+          - "Auto"
+          - "On"
+          - "Off"
+        initial_option: ${minuet_auto_preset_thermostat_fan_mode}
+        restore_value: true
+    switch:
+      - id: minuet_auto_preset_${minuet_auto_preset_id}_thermostat_on
+        platform: template
+        name: "Auto preset ${minuet_auto_preset_name} thermostat on"
+        icon: mdi:thermostat-cog
+        entity_category: config
+        optimistic: true
+        restore_mode: ${"RESTORE_DEFAULT_ON" if minuet_auto_preset_thermostat_on else "RESTORE_DEFAULT_OFF"}
+
+  # Humidistat settings
+  humidistat:
+    switch:
+      - id: minuet_auto_preset_${minuet_auto_preset_id}_humidistat_on
+        platform: template
+        name: "Auto preset ${minuet_auto_preset_name} humidistat on"
+        icon: mdi:thermostat-cog
+        internal: ${not minuet_feature_auto_humidistat}
+        entity_category: config
+        optimistic: true
+        restore_mode: ${"RESTORE_DEFAULT_ON" if minuet_auto_preset_humidistat_on else "RESTORE_DEFAULT_OFF"}
+
+  # CO2 monitor settings
+  co2_monitor:
+    switch:
+      - id: minuet_auto_preset_${minuet_auto_preset_id}_co2_monitor_on
+        platform: template
+        name: "Auto preset ${minuet_auto_preset_name} CO₂ monitor on"
+        icon: mdi:thermostat-cog
+        internal: ${not minuet_feature_auto_co2_monitor}
+        entity_category: config
+        optimistic: true
+        restore_mode: ${"RESTORE_DEFAULT_ON" if minuet_auto_preset_co2_monitor_on else "RESTORE_DEFAULT_OFF"}
+
+  # Air quality monitor settings
+  air_quality_monitor:
+    switch:
+      - id: minuet_auto_preset_${minuet_auto_preset_id}_air_quality_monitor_on
+        platform: template
+        name: "Auto preset ${minuet_auto_preset_name} air quality monitor on"
+        icon: mdi:thermostat-cog
+        internal: ${not minuet_feature_auto_air_quality_monitor}
+        entity_category: config
+        optimistic: true
+        restore_mode: ${"RESTORE_DEFAULT_ON" if minuet_auto_preset_air_quality_monitor_on else "RESTORE_DEFAULT_OFF"}

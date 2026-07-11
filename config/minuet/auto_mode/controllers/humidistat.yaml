@@ -1,0 +1,66 @@
+# MINUET AUTO MODE HUMIDISTAT PACKAGE
+#
+# Monitors indoor humidity and calls for ventilation when a threshold is exceeded.
+
+defaults:
+  minuet_auto_humidistat_default_on: false
+  minuet_auto_humidistat_default_fan_mode: "LOW"
+  minuet_auto_humidistat_default_target_humidity: 90
+  minuet_auto_humidistat_default_temperature_minimum: 15
+
+esphome:
+  build_flags:
+    - "-DMINUET_AUTO_HUMIDISTAT"
+    - "-DMINUET_AUTO_HUMIDISTAT_DEFAULT_ON=${1 if minuet_auto_humidistat_default_on else 0}"
+  includes:
+    - minuet/auto_mode/controllers/humidistat.h
+
+climate:
+  - id: minuet_auto_humidistat
+    name: "Auto humidistat"
+    icon: mdi:thermostat-auto
+    platform: template
+    supports_action: true
+    supports_current_humidity: ${minuet_auto_sensors.humidity|length != 0}
+    supports_target_humidity: true
+    supported_modes:
+      - "OFF"
+      - DRY
+    supported_fan_modes:
+      - "OFF"
+      - LOW
+      - MEDIUM
+      - HIGH
+    optimistic: true
+    restore_mode: RESTORE
+    initial_state:
+      mode: ${"DRY" if minuet_auto_humidistat_default_on else "OFF"}
+      fan_mode: ${minuet_auto_humidistat_default_fan_mode}
+      target_humidity: ${minuet_auto_humidistat_default_target_humidity}
+    visual:
+      min_humidity: 0
+      max_humidity: 100
+    on_state:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();
+
+number:
+  - id: minuet_auto_humidistat_temperature_minimum
+    name: "Auto humidistat temperature minimum"
+    icon: mdi:thermostat-cog
+    platform: template
+    unit_of_measurement: '°C'
+    device_class: temperature_delta
+    entity_category: config
+    min_value: -5.0
+    max_value: 50.0
+    step: 0.5
+    initial_value: ${minuet_auto_humidistat_default_temperature_minimum}
+    mode: box
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        lambda: |-
+          minuet::auto_mode::schedule_governor_update();

@@ -1,0 +1,26 @@
+# MINUET AUTO MODE CONTROLLERS PACKAGE
+#
+# TODO: Find a way to remove unnecessary controllers when the sensors they need are not available.
+# Simply adding a check for `minuet_auto_sensors.foo|length != 0` to the package conditions does not
+# work because the packages that define those variables don't get merged together early enough.
+
+substitutions:
+  # Whether support for specific controllers should be included.
+  minuet_feature_auto_air_quality_monitor: ${minuet_feature_auto_optional_controllers}
+  minuet_feature_auto_co2_monitor: ${minuet_feature_auto_optional_controllers}
+  minuet_feature_auto_humidistat: ${minuet_feature_auto_optional_controllers}
+  # Controller packages.
+  minuet_package_auto_air_quality_monitor: !include air_quality_monitor.yaml
+  minuet_package_auto_co2_monitor: !include co2_monitor.yaml
+  minuet_package_auto_humidistat: !include humidistat.yaml
+
+esphome:
+  includes:
+    - minuet/auto_mode/controllers/controllers.h
+
+packages:
+  - !include common.yaml
+  - !include thermostat.yaml
+  - ${minuet_package_auto_air_quality_monitor if minuet_feature_auto_air_quality_monitor else {}}
+  - ${minuet_package_auto_co2_monitor if minuet_feature_auto_co2_monitor else {}}
+  - ${minuet_package_auto_humidistat if minuet_feature_auto_humidistat else {}}

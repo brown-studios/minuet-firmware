@@ -1,0 +1,85 @@
+# MINUET SAFETY LOCK PACKAGE
+#
+# Stops the fan and closes the lid when any safety lock is triggered.
+# Inhibits fan and lid operation until all safety lock are released.
+
+esphome:
+  includes:
+    - minuet/safety_lock.h
+  on_boot:
+    - priority: 1000
+      then:
+        - lambda: |-
+            id(minuet_rain_safety_lock_latched).publish_state(false);
+
+binary_sensor:
+  - id: minuet_accessory_safety_lock
+    name: "Accessory safety lock"
+    icon: mdi:lock
+    entity_category: diagnostic
+    platform: gpio
+    pin:
+      pca9554: minuet_xio
+      number: 8
+      mode: input
+      inverted: true
+    use_interrupt: false
+    trigger_on_initial_state: true
+    filters:
+      - delayed_on_off: 250ms
+    on_state:
+      then:
+        - lambda: |-
+            minuet::safety_lock::schedule_update();
+  - id: minuet_battery_safety_lock
+    name: "Battery safety lock"
+    icon: mdi:lock
+    entity_category: diagnostic
+    platform: template
+    trigger_on_initial_state: true
+    on_state:
+      then:
+        - lambda: |-
+            minuet::safety_lock::schedule_update();
+  - id: minuet_rain_safety_lock
+    name: "Rain safety lock"
+    icon: mdi:lock
+    entity_category: diagnostic
+    platform: template
+    trigger_on_initial_state: true
+    on_state:
+      then:
+        - lambda: |-
+            minuet::safety_lock::schedule_update();
+  - id: minuet_rain_safety_lock_latched
+    name: "Rain safety lock latched"
+    icon: mdi:lock-alert
+    entity_category: diagnostic
+    platform: template
+    trigger_on_initial_state: true
+    on_state:
+      then:
+        - lambda: |-
+            minuet::safety_lock::schedule_update();
+
+switch:
+  - id: minuet_manual_safety_lock
+    name: "Manual safety lock"
+    icon: mdi:lock
+    platform: template
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_state:
+      then:
+        - lambda: |-
+            minuet::safety_lock::schedule_update();
+  - id: minuet_automation_safety_lock
+    name: "Automation safety lock"
+    icon: mdi:lock
+    platform: template
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_state:
+      then:
+        - lambda: |-
+            minuet::safety_lock::schedule_update();

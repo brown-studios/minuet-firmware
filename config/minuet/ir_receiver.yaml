@@ -1,0 +1,30 @@
+# MINUET INFRARED RECEIVER PACKAGE
+#
+# Handles commands from infrared remote controls.
+
+external_components:
+  - source: github://brown-studios/esphome-maxxfan-protocol@v1.1.1
+    components: [maxxfan_protocol]
+# - source: ../../esphome-maxxfan-protocol/components/
+#   components: [maxxfan_protocol]
+#   refresh: always
+
+maxxfan_protocol:
+
+remote_receiver:
+  - id: minuet_ir
+    pin:
+      number: 19
+      mode: input
+      inverted: true
+    dump: ${["maxxfan", "nec"] if minuet_feature_debug else []}
+    on_maxxfan:
+      then:
+        lambda: |-
+          minuet::coordinator::command_ir_remote_state(x.fan_on, x.fan_speed / 10, x.fan_exhaust,
+              x.cover_open, x.auto_mode, x.auto_temperature);
+          minuet::tone::play(x.warn ? "warn" : "ir_confirm");
+    on_nec:
+      then:
+        lambda: |-
+          minuet::accessory::dispatch_handler(&minuet::accessory::Accessory::handle_nec_code, x);

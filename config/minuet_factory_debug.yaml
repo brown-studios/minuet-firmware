@@ -1,0 +1,10 @@
+# MINUET FACTORY CONFIGURATION WITH DEBUGGING
+#
+# Includes debug features for development of the factory configuration.
+
+substitutions:
+  # Enable features (see minuet/main.yaml).
+  minuet_feature_debug: true
+
+packages:
+  - !include minuet_factory.yaml

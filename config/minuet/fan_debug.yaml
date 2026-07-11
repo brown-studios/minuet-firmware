@@ -1,0 +1,107 @@
+# MINUET FAN DEBUG PACKAGE
+#
+# Provides development and debugging functions for the fan motor driver.  They are excluded from
+# the base configuration because they can interfere with the normal operation of the device.
+
+button:
+  - id: minuet_fan_debug_start_mpet
+    name: "Fan debug start MPET"
+    icon: mdi:bug-outline
+    platform: template
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    on_press:
+      then:
+        - lambda: |-
+            minuet::fan::motor_controller.start_mpet();
+
+select:
+  - id: minuet_fan_debug_motor_descriptor
+    platform: template
+    name: "Fan debug motor descriptor"
+    icon: mdi:bug-outline
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    optimistic: true
+    restore_value: false
+    options: ${minuet_fan_motor_profiles | map(attribute="name") | list}
+    on_value:
+      then:
+        - script.execute: minuet_fan_motor_init
+  - id: minuet_fan_debug_speed
+    platform: template
+    name: "Fan debug speed"
+    icon: mdi:bug-outline
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    optimistic: true
+    restore_value: false
+    options:
+      - Default
+      - Override
+    on_value:
+      then:
+        - script.execute: minuet_fan_motor_update
+  - id: minuet_fan_debug_direction
+    platform: template
+    name: "Fan debug direction"
+    icon: mdi:bug-outline
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    optimistic: true
+    restore_value: false
+    options:
+      - Default
+      - Air out
+      - Air in
+    on_value:
+      then:
+        - script.execute: minuet_fan_motor_update
+  - id: minuet_fan_debug_brake
+    platform: template
+    name: "Fan debug brake"
+    icon: mdi:bug-outline
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    optimistic: true
+    restore_value: false
+    options:
+      - Default
+      - Brake off
+      - Brake on
+    on_value:
+      then:
+        - script.execute: minuet_fan_motor_update
+  - id: minuet_fan_debug_sleep
+    platform: template
+    name: "Fan debug sleep"
+    icon: mdi:bug-outline
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    optimistic: true
+    restore_value: false
+    options:
+      - Default
+      - Keep awake
+    on_value:
+      then:
+        - script.execute: minuet_fan_motor_update
+
+number:
+  - id: minuet_fan_debug_speed_override
+    name: "Fan debug speed override"
+    icon: mdi:bug-outline
+    unit_of_measurement: 'rpm'
+    entity_category: config
+    disabled_by_default: ${minuet_use_disabled_by_default}
+    platform: template
+    min_value: 0
+    max_value: 2000  # equal to minuet::fan::BOARD_MAX_SPEED_RPM
+    step: 10
+    mode: slider
+    optimistic: true
+    initial_value: 0
+    restore_value: false
+    on_value:
+      then:
+        - script.execute: minuet_fan_motor_update

@@ -1,0 +1,20 @@
+# MINUET AUTO MODE SENSOR TEMPLATE PACKAGE
+#
+# This template package is included once per selectable sensor.
+#
+# TODO: Find a way to remove unnecessary sensor selectors instead of marking them internal.
+
+esphome:
+  build_flags:
+    - "-DMINUET_AUTO_SENSOR_${minuet_auto_sensor_id|upper}=${minuet_auto_sensor_options|sort(attribute='priority', reverse=true)|map(attribute='sensor_id')|join(',')}"
+
+select:
+  - id: minuet_auto_sensor_${minuet_auto_sensor_id}
+    name: "Auto sensor ${minuet_auto_sensor_name}"
+    icon: mdi:thermostat-cog
+    internal: ${minuet_auto_sensor_options|length < 2}
+    platform: template
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    options: ${['Auto'] + minuet_auto_sensor_options|sort(attribute='priority', reverse=true)|map(attribute='name')|list}

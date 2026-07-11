@@ -1,0 +1,9 @@
+# MINUET TEMPLATE CONFIGURATION WITH LOCAL MINUET PACKAGES
+#
+# Overrides the template configuration to use local packages.
+
+substitutions:
+  package_minuet_main: !include minuet/main.yaml
+
+packages:
+  - !include minuet_template.yaml

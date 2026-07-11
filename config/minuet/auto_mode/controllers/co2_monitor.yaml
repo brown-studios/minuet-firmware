@@ -1,0 +1,9 @@
+# MINUET AUTO MODE CO2 MONITOR PACKAGE
+#
+# Monitors indoor CO2 concentration and calls for ventilation when thresholds are exceeded.
+
+esphome:
+  build_flags:
+    - "-DMINUET_AUTO_CO2_MONITOR"
+  includes:
+    - minuet/auto_mode/controllers/co2_monitor.h

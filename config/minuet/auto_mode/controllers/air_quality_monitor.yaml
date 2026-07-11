@@ -1,0 +1,9 @@
+# MINUET AUTO MODE AIR QUALITY MONITOR PACKAGE
+#
+# Monitors outdoor air quality and suppresses ventilation when a threshold is exceeded.
+
+esphome:
+  build_flags:
+    - "-DMINUET_AUTO_AIR_QUALITY_MONITOR"
+  includes:
+    - minuet/auto_mode/controllers/air_quality_monitor.h
