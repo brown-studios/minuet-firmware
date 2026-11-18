@@ -117,7 +117,7 @@ substitutions:
   #
   #  - "local": Use the version of Minuet already checked out in a local subdirectory.
   #  - "remote_stable": Pull the latest release version of Minuet from GitHub (recommended default).
-  #  - "remote_main": Pull the latest development version of Minuet from GttHub.
+  #  - "remote_main": Pull the latest development version of Minuet from GitHub (may not be fully tested).
   minuet_origin: remote_stable
   minuet_main:
     local: minuet/main.yaml

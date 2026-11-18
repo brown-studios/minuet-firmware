@@ -46,11 +46,11 @@ substitutions:
       fan_speed_rpm_max: 1200
 
 external_components:
-  # - source: github://brown-studios/esphome-mcf8316@v0.3.0
-  #   components: [mcf8316]
-  - source: ../../esphome-mcf8316/components/
+  - source: github://brown-studios/esphome-mcf8316@v0.3.1
     components: [mcf8316]
-    refresh: always
+# - source: ../../esphome-mcf8316/components/
+#   components: [mcf8316]
+#   refresh: always
 
 esphome:
   includes:

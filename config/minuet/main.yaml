@@ -100,7 +100,7 @@ esphome:
     version: ${minuet_version}
   # The minimum version of ESPHome required to compile these packages.
   # Newer versions of ESPHome should work too but may have breaking changes that cause problems.
-  min_version: "2026.10.0"
+  min_version: "2026.11.0"
   # C++ include files (some packages include more of them).
   includes:
     - minuet/utility.h

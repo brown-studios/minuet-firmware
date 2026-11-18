@@ -118,8 +118,8 @@ select:
     restore_value: true
     options:
       - "Polite"  # Play normal or high severity tones
-      - "More"  # Play high severity tones only
-      - "Less"  # Play all tones
+      - "More"  # Play all tones
+      - "Less"  # Play high severity tones only
 
 script:
   - id: minuet_tone
