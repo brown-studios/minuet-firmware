@@ -40,10 +40,6 @@ substitutions:
       - id: !extend minuet_light
         setup_condition: !lambda 'return minuet::accessory::is_installed("light");'
 
-external_components:
-  - source: github://j9brown/esphome@i2s-led
-    components: [i2s_clockless_led_strip]
-
 esphome:
   includes:
     - minuet/accessory/light.h
