@@ -4,13 +4,14 @@
 
 esphome:
   includes:
-    - "<nvs_flash.h>"
+    - "<nvs.h>"
   on_boot:
-    - priority: 0
-      then:
+    - then:
+        - delay: 5s
         - lambda: |-
             nvs_stats_t nvs_stats;
-            if (nvs_get_stats(NULL, &nvs_stats) == ESP_OK) {
-              ESP_LOGD(minuet::TAG, "NVS entries: used=%" PRIuPTR ", free=%" PRIuPTR ", avail=%" PRIuPTR ", total=%" PRIuPTR,
+            esp_err_t err = nvs_get_stats(NVS_DEFAULT_PART_NAME, &nvs_stats);
+            if (err == ESP_OK) {
+              ESP_LOGD(minuet::TAG, "NVS entries: used=%zu, free=%zu, avail=%zu, total=%zu",
                   nvs_stats.used_entries, nvs_stats.free_entries, nvs_stats.available_entries, nvs_stats.total_entries);
             }
