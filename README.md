@@ -107,15 +107,21 @@ Minuet uses these external components for some of its functions.  You can also u
 
 ## Development
 
-This project follows the ESPHome code style with [pre-commit](https://pre-commit.com/) hooks for linting and code formatting.
+This project uses [pre-commit](https://pre-commit.com/) for linting and follows the ESPHome style guide.
 
-To run the style checks manually on all files and fix issues, run the following command:
+To install the git hooks:
+
+```bash
+uv run pre-commit install
+```
+
+To check all files:
 
 ```bash
 uv run pre-commit run --all-files
 ```
 
-## Contribution guidelines
+## Contributing
 
 We welcome thoughtful contributions to this project made without the use of generative AI / LLM tools.
 
