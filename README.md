@@ -2,11 +2,11 @@
 
 [Minuet](https://minuet.brownstudios.dev) upgrades your [MAXXAIR Maxxfan](https://www.maxxair.com/products/fans/maxxfan-deluxe/) with a brushless DC motor, home automation features, and accessories.
 
-This repository contains the Minuet firmware configuation based on ESPHome.  You are welcome to modify the Minuet firmware and hardware subject to the [license terms](#notice) and we encourage you to make your own accessories.  We welcome your thoughtful contributions.
+This repository contains Minuet's firmware configuration for ESPHome.  You are welcome to modify the Minuet firmware and hardware subject to the [license terms](#notice) and we encourage you to make your own accessories.  We welcome your thoughtful contributions.
 
 *Refer to the [Minuet website](https://minuet.brownstudios.dev) for documentation and project updates.*
 
-*Refer to the [Minuet main repository](https://github.com/brown-studios/minuet) for the hardware design files.*
+*Refer to the [Minuet hardware repository](https://github.com/brown-studios/minuet) for the hardware design files.*
 
 ## Project status
 
@@ -48,9 +48,9 @@ Similarly, Minuet C++ declarations reside in the `minuet` namespace and preproce
 
 ### Getting started with the tools
 
-To get started, you will need to install the ESPHome tools either in [Home Assistant](https://esphome.io/guides/getting_started_hassio) or on the [command-line](https://esphome.io/guides/getting_started_command_line).  You may also find the [Samba share](https://github.com/home-assistant/addons/blob/master/samba/DOCS.md) and [File Editor](https://github.com/home-assistant/addons/blob/master/configurator/DOCS.md) Home Assistant add-ons helpful for transferring and editing files.
+To get started, you will need to [install the ESPHome tools](https://esphome.io/install/) on your computer.
 
-- Familiarize yourself with the [ESPHome](https://esphome.io/) tools that you will be using to build the firmware.
+- Familiarize yourself with [ESPHome](https://esphome.io/) and the tools that you will be using to build the firmware.
 - Download the most recent contents of this repository.
 - Make a copy of [minuet_template.yaml](./config/minuet_template.yaml) with a name of your choice, such as `my_minuet.yaml`.
 - Edit `my_minuet.yaml` to your heart's content.
@@ -126,3 +126,5 @@ Thanks to [skypeachblue](https://github.com/skypeachblue) and [wingspinner](http
 ## Notice
 
 The Minuet software, documentation, design, and all copyright protected artifacts are released under the terms of the [MIT license](LICENSE).
+
+The Minuet hardware is released under the terms of the [CERN-OHL-S license](https://github.com/brown-studios/minuet/blob/main/hardware/LICENSE).
