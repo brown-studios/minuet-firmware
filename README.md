@@ -2,7 +2,7 @@
 
 [Minuet](https://minuet.brownstudios.dev) upgrades your [MAXXAIR Maxxfan](https://www.maxxair.com/products/fans/maxxfan-deluxe/) with a brushless DC motor, home automation features, and accessories.
 
-This repository contains the Minuet firmware configuation based on ESPHome.  You are welcome to modify the Minuet firmware and hardware subject to the [license terms](#notice) and we encourage you to make your own accessories.  We welcome thoughtful contributions.
+This repository contains the Minuet firmware configuation based on ESPHome.  You are welcome to modify the Minuet firmware and hardware subject to the [license terms](#notice) and we encourage you to make your own accessories.  We welcome your thoughtful contributions.
 
 *Refer to the [Minuet website](https://minuet.brownstudios.dev) for documentation and project updates.*
 
@@ -87,24 +87,6 @@ If you develop custom accessories, then you will need to add components to your 
 
 The Minuet firmware automatically detects and configures well-known accessories that are plugged into the `I2C` or `EXPANSION` port.  Refer to [config/minuet/accessory.yaml] to see how that's done if you're making something to share with others.
 
-## Contributing to the Minuet firmware
-
-You can do a lot of cool stuff with Minuet and ESPHome like plugging in I2C sensors, making accessories, and adding home automation features to enrich your living space.
-
-Feel free to suggest ideas for improvement to Minuet using the Github issue tracker.  You can also send pull requests to fix bugs and to add features.  We recommend consulting the developers for guidance if you have big changes in mind.  We reserve the right to not accept contributions for any reason.
-
-> [!IMPORTANT]
-> We will not accept contributions that have been substantially produced with generative AI tools.  As an open-source project, we expect you to warrant that your contributions are your own work and that they comply with all applicable licenses.
-
-We look forward to hearing your thoughts and seeing the cool stuff that you make with Minuet!
-
-## External components
-
-Minuet uses these external components for some of its functions.  You can also use them in your own projects.
-
-- [esphome-maxxfan-protocol](https://github.com/brown-studios/esphome-maxxfan-protocol): Maxxfan infrared remote control protocol
-- [esphome-mcf8316](https://github.com/brown-studios/esphome-mcf8316): MCF8316 brushless DC motor driver with field-oriented control
-
 ## Development
 
 This project uses [pre-commit](https://pre-commit.com/) for linting and follows the ESPHome style guide.
@@ -121,9 +103,21 @@ To check all files:
 uv run pre-commit run --all-files
 ```
 
-## Contributing
+## Contributing to Minuet
 
-We welcome thoughtful contributions to this project made without the use of generative AI / LLM tools.
+There's a lot you can do when you have control over your appliances and we welcome your thoughtful contributions.
+
+Please use the Github issue tracker to suggest improvements to Minuet and consult the project maintainers for guidance before sending large pull requests.  We reserve the right to refuse contributions for any reason.
+
+> [!IMPORTANT]
+> We will not accept contributions that have been substantially produced with generative AI tools.  As an open-source project, we expect you to warrant that your contributions are your own work and that they comply with all applicable licenses.
+
+## External components
+
+I created these ESPHome external components specifically for Minuet's firmware.  You can also use them in your own projects.
+
+- [esphome-maxxfan-protocol](https://github.com/brown-studios/esphome-maxxfan-protocol): Maxxfan infrared remote control protocol
+- [esphome-mcf8316](https://github.com/brown-studios/esphome-mcf8316): MCF8316 brushless DC motor driver with field-oriented control
 
 ## Acknowledgements
 
